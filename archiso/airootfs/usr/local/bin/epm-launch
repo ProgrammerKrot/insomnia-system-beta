@@ -6,7 +6,14 @@ LAYOUT_FILE="/etc/insomnia/epm/zellij-layout.kdl"
 SESSION_NAME="insomnia-epm"
 
 clear
-cat /etc/issue
+
+# Animate the eye for 4 seconds as a splash, then hand off to Zellij
+if command -v insomnia-eye &>/dev/null && [[ -t 1 ]]; then
+  timeout 4 insomnia-eye --loop 2>/dev/null || true
+  clear
+fi
+
+insomnia-eye --once 2>/dev/null || cat /etc/issue
 
 [[ -n "${ZELLIJ:-}" ]] && { echo "[!] Already inside a Zellij session."; exit 0; }
 

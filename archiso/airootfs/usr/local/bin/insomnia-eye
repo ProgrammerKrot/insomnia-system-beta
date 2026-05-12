@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# insomnia-eye — Animated blinking eye for TTY / EPM dashboard header
+# Usage: insomnia-eye [--once] [--loop]
+#   --once   print one open frame and exit (for static banners)
+#   --loop   animate forever (default)
+set -euo pipefail
+
+W='\e[1;37m'   # bold white
+D='\e[2;37m'   # dim white
+R='\e[0m'      # reset
+CL='\e[2J\e[H' # clear + home
+
+# ── Frame definitions ─────────────────────────────────────────────────────────
+
+OPEN=(
+"              . . . ─────────────── . . .         "
+"           .     ╱                   ╲     .      "
+"         .      ╱   ╭─────────────╮   ╲      .   "
+"        .      ╱   ╱               ╲   ╲      .  "
+"       .      │   │   ╭─────────╮   │   │      . "
+"       .      │   │  ╱  ╭─────╮  ╲  │   │      . "
+"       .      │   │ │   │  ●  │   │ │   │      . "
+"       .      │   │  ╲  ╰─────╯  ╱  │   │      . "
+"       .      │   │   ╰─────────╯   │   │      . "
+"        .      ╲   ╲               ╱   ╱      .  "
+"         .      ╲   ╰─────────────╯   ╱      .   "
+"           .     ╲                   ╱     .      "
+"              ' ' ' ─────────────── ' ' '         "
+)
+
+HALF=(
+"              . . . ─────────────── . . .         "
+"           .     ╱                   ╲     .      "
+"         .      ╱   ╭─────────────╮   ╲      .   "
+"        .      ╱   ╱               ╲   ╲      .  "
+"       . ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  . "
+"       .      │   │  ╱  ╭─────╮  ╲  │   │      . "
+"       .      │   │ │   │  ◉  │   │ │   │      . "
+"       . ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  . "
+"       .                                       .  "
+"        .      ╲   ╲               ╱   ╱      .  "
+"         .      ╲   ╰─────────────╯   ╱      .   "
+"           .     ╲                   ╱     .      "
+"              ' ' ' ─────────────── ' ' '         "
+)
+
+CLOSED=(
+"              . . . ─────────────── . . .         "
+"           .     ╱                   ╲     .      "
+"         .      ╱   ╭─────────────╮   ╲      .   "
+"        .      ╱   ╱               ╲   ╲      .  "
+"       . ════════════════════════════════════  .  "
+"       . ════════════════════════════════════  .  "
+"       . ════════════════════════════════════  .  "
+"       .                                       .  "
+"       .                                       .  "
+"        .      ╲   ╲               ╱   ╱      .  "
+"         .      ╲   ╰─────────────╯   ╱      .   "
+"           .     ╲                   ╱     .      "
+"              ' ' ' ─────────────── ' ' '         "
+)
+
+LABEL="  I N S O M N I A   S Y S T E M   v0.1"
+
+# ── Render a frame ────────────────────────────────────────────────────────────
+
+_render() {
+  local -n frame=$1
+  local color=$2
+  printf "${CL}"
+  printf "\n"
+  for line in "${frame[@]}"; do
+    printf "  ${color}%s${R}\n" "$line"
+  done
+  printf "\n  ${D}%s${R}\n\n" "$LABEL"
+}
+
+# ── Modes ─────────────────────────────────────────────────────────────────────
+
+_once() {
+  _render OPEN "$W"
+}
+
+_loop() {
+  trap 'printf "${R}"; tput cnorm; exit 0' INT TERM
+  tput civis  # hide cursor
+
+  while true; do
+    _render OPEN  "$W";    sleep 2.8
+    _render HALF  "$D";    sleep 0.1
+    _render CLOSED "$D";   sleep 0.12
+    _render HALF  "$D";    sleep 0.1
+    _render OPEN  "$W";    sleep 0.3
+    # occasionally double-blink
+    if (( RANDOM % 3 == 0 )); then
+      _render HALF  "$D";  sleep 0.08
+      _render CLOSED "$D"; sleep 0.1
+      _render HALF  "$D";  sleep 0.08
+      _render OPEN  "$W";  sleep 0.2
+    fi
+  done
+}
+
+case "${1:---loop}" in
+  --once) _once ;;
+  --loop) _loop ;;
+  *)      _loop ;;
+esac

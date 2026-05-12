@@ -1,0 +1,122 @@
+# Insomnia System — Package List for ISO Build
+# Edit sections to enable/disable features before running build-iso.sh
+
+# ── Base System ────────────────────────────────────────────────
+base
+base-devel
+linux
+linux-headers
+linux-firmware
+systemd
+systemd-sysvcompat
+mkinitcpio
+mkinitcpio-archiso
+
+# ── Boot & EFI ─────────────────────────────────────────────────
+grub
+efibootmgr
+syslinux
+os-prober
+
+# ── Power Management ───────────────────────────────────────────
+tlp
+tlp-rdw
+powertop
+cpupower
+acpi
+acpid
+thermald
+upower
+
+# ── Networking ─────────────────────────────────────────────────
+networkmanager
+iwd
+openssh
+wireless_tools
+iw
+wpa_supplicant
+
+# ── Shell & Core TUI (EPM Stack) ───────────────────────────────
+zsh
+zsh-completions
+zsh-syntax-highlighting
+zsh-autosuggestions
+zellij
+tmux
+btop
+htop
+micro
+ranger
+w3m
+fzf
+ripgrep
+fd
+bat
+eza
+zoxide
+starship
+terminus-font
+
+# ── System Utilities ───────────────────────────────────────────
+sudo
+git
+curl
+wget
+rsync
+unzip
+p7zip
+tar
+gzip
+less
+man-db
+man-pages
+e2fsprogs
+dosfstools
+ntfs-3g
+exfatprogs
+squashfs-tools
+arch-install-scripts
+reflector
+
+# ── Hardware Support ───────────────────────────────────────────
+mesa
+vulkan-intel
+vulkan-radeon
+xf86-video-amdgpu
+xf86-video-nouveau
+intel-ucode
+amd-ucode
+libva-intel-driver
+libva-mesa-driver
+
+# ── Plymouth (Boot Splash) ─────────────────────────────────────
+plymouth
+
+# ── Graphical Installer (Calamares) ───────────────────────────
+calamares
+calamares-qt6
+kpmcore
+boost-libs
+python-yaml
+python-jsonschema
+
+# ── GUI / Regime I — Comment out for EPM-only build ───────────
+wayland
+xorg-xwayland
+xorg-server
+gnome
+gnome-tweaks
+gnome-shell-extensions
+gdm
+papirus-icon-theme
+ttf-inter
+ttf-jetbrains-mono-nerd
+noto-fonts
+noto-fonts-emoji
+noto-fonts-cjk
+firefox
+
+# ── Custom Insomnia Packages (from insomnia repo) ──────────────
+# insomnia-core
+# insomnia-theme-oled
+# insomnia-zsh-prompt

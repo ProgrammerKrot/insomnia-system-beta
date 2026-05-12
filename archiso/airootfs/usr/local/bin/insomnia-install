@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# insomnia-install — Launch the Calamares graphical installer
+# Can be run from TTY (launches in GUI session) or directly from GNOME.
+set -euo pipefail
+
+_die() { echo "[!] $*" >&2; exit 1; }
+
+# Verify Calamares is present
+command -v calamares &>/dev/null || _die "Calamares not found. Are you running the live ISO?"
+
+# Must be root for the actual install
+if [[ $EUID -ne 0 ]]; then
+  # Try polkit/pkexec elevation first (GUI session)
+  if command -v pkexec &>/dev/null && [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
+    exec pkexec calamares
+  fi
+  # Fallback: sudo (TTY or terminal)
+  exec sudo calamares
+fi
+
+exec calamares

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Install Insomnia System
+GenericName=System Installer
+Comment=Install Insomnia System to disk
+Exec=insomnia-install
+Icon=system-software-install
+Terminal=false
+Categories=System;
+Keywords=install;installer;calamares;insomnia;
+StartupNotify=true

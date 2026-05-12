@@ -1,0 +1,35 @@
+# Insomnia System — Calamares branding descriptor
+# /etc/calamares/branding/insomnia/branding.desc
+
+---
+componentName: insomnia
+
+# Strings shown in the installer UI
+strings:
+    productName:        "Insomnia System"
+    shortProductName:   "Insomnia"
+    version:            "0.1 (Dark)"
+    shortVersion:       "0.1"
+    versionedName:      "Insomnia System 0.1"
+    shortVersionedName: "Insomnia 0.1"
+    bootloaderEntryName: "Insomnia System"
+    productUrl:         "https://github.com/ProgrammerKrot/InsomniaSys-beta"
+    supportUrl:         "https://github.com/ProgrammerKrot/InsomniaSys-beta/issues"
+    releaseNotesUrl:    "https://github.com/ProgrammerKrot/InsomniaSys-beta/releases"
+
+# Images (relative to this branding directory)
+images:
+    productLogo:        "logo.png"
+    productIcon:        "logo.png"
+    productWelcome:     "welcome.png"
+
+# Slideshow shown during installation (QML file)
+slideshow:              "show.qml"
+slideshowAPI:           2
+
+# Colour palette — OLED black theme
+style:
+    SidebarBackground:      "#000000"
+    SidebarText:            "#e0e0e0"
+    SidebarTextSelect:      "#ffffff"
+    SidebarTextHighlight:   "#444444"

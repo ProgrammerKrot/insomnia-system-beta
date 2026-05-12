@@ -1,0 +1,21 @@
+\e[1;37m
+              . . . ─────────────── . . .
+           .     ╱                   ╲     .
+         .      ╱   ╭─────────────╮   ╲      .
+        .      ╱   ╱               ╲   ╲      .
+       .      │   │   ╭─────────╮   │   │      .
+       .      │   │  ╱  ╭─────╮  ╲  │   │      .
+       .      │   │ │   │  ●  │   │ │   │      .
+       .      │   │  ╲  ╰─────╯  ╱  │   │      .
+       .      │   │   ╰─────────╯   │   │      .
+        .      ╲   ╲               ╱   ╱      .
+         .      ╲   ╰─────────────╯   ╱      .
+           .     ╲                   ╱     .
+              ' ' ' ─────────────── ' ' '
+\e[0m
+\e[0;37m  I N S O M N I A   S Y S T E M   v0.1  ·  Arch-based  ·  OLED  ·  \l
+  \n · \r · \d \t\e[0m
+
+  \e[2mType \e[0;37mregime\e[2m to check power mode  ·  \e[0;37msudo insomnia-ctl epm\e[2m to enter EPM
+  Type \e[0;37minsomnia-install\e[2m to launch the graphical installer.\e[0m
+

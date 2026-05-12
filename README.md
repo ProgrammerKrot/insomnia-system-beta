@@ -2,13 +2,27 @@
 ### *"The machine never sleeps."*
 
 ```
-██╗███╗   ██╗███████╗ ██████╗ ███╗   ███╗███╗   ██╗██╗ █████╗
-██║████╗  ██║██╔════╝██╔═══██╗████╗ ████║████╗  ██║██║██╔══██╗
-██║██╔██╗ ██║███████╗██║   ██║██╔████╔██║██╔██╗ ██║██║███████║
-██║██║╚██╗██║╚════██║██║   ██║██║╚██╔╝██║██║╚██╗██║██║██╔══██║
-██║██║ ╚████║███████║╚██████╔╝██║ ╚═╝ ██║██║ ╚████║██║██║  ██║
-╚═╝╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝
-                                               S Y S T E M  v0.1
+              . . . ─────────────── . . .
+           .     ╱                   ╲     .
+         .      ╱   ╭─────────────╮   ╲      .
+        .      ╱   ╱               ╲   ╲      .
+       .      │   │   ╭─────────╮   │   │      .
+       .      │   │  ╱  ╭─────╮  ╲  │   │      .
+       .      │   │ │   │  ●  │   │ │   │      .
+       .      │   │  ╲  ╰─────╯  ╱  │   │      .
+       .      │   │   ╰─────────╯   │   │      .
+        .      ╲   ╲               ╱   ╱      .
+         .      ╲   ╰─────────────╯   ╱      .
+           .     ╲                   ╱     .
+              ' ' ' ─────────────── ' ' '
+
+     ██╗███╗   ██╗███████╗ ██████╗ ███╗   ███╗███╗   ██╗██╗ █████╗
+     ██║████╗  ██║██╔════╝██╔═══██╗████╗ ████║████╗  ██║██║██╔══██╗
+     ██║██╔██╗ ██║███████╗██║   ██║██╔████╔██║██╔██╗ ██║██║███████║
+     ██║██║╚██╗██║╚════██║██║   ██║██║╚██╔╝██║██║╚██╗██║██║██╔══██║
+     ██║██║ ╚████║███████║╚██████╔╝██║ ╚═╝ ██║██║ ╚████║██║██║  ██║
+     ╚═╝╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝
+                                                      S Y S T E M  v0.1
 ```
 
 > **Arch Linux derivative** · Portable USB-first · OLED-native dark theme · Extreme Power Mode
@@ -26,10 +40,11 @@
 5. [Extreme Power Mode (EPM)](#extreme-power-mode-epm)
    - [insomnia-ctl Script](#insomnia-ctl-script)
    - [EPM Tool Stack](#epm-tool-stack)
-6. [Branding & Theming](#branding--theming)
-7. [Custom Pacman Repository](#custom-pacman-repository)
-8. [USB Persistence](#usb-persistence)
-9. [Contributing](#contributing)
+6. [Graphical Installer (Calamares)](#graphical-installer-calamares)
+7. [Branding & Theming](#branding--theming)
+8. [Custom Pacman Repository](#custom-pacman-repository)
+9. [USB Persistence](#usb-persistence)
+10. [Contributing](#contributing)
 
 ---
 
@@ -537,7 +552,101 @@ layout {
 
 ---
 
+## Graphical Installer (Calamares)
+
+Insomnia ships **Calamares** — the same installer framework used by Manjaro, EndeavourOS, and Garuda. It runs during the live session and gives a full GUI install wizard.
+
+### How it Works
+
+```
+Live Session
+    │
+    ├─ GUI (GNOME):  click "Install Insomnia System" icon on desktop
+    │                → pkexec calamares  (polkit elevation)
+    │
+    └─ TTY:          type insomnia-install
+                     → sudo calamares
+```
+
+### Installer Flow
+
+| Step | Module | What Happens |
+|------|--------|--------------|
+| 1 | `welcome` | System requirement checks (20GB disk, 2GB RAM) |
+| 2 | `locale` | Language and timezone selection |
+| 3 | `keyboard` | Keyboard layout |
+| 4 | `partition` | Disk layout — erase / alongside / manual. Default: ext4 |
+| 5 | `users` | Username, password (zsh is set as default shell) |
+| 6 | `summary` | Review screen — last chance before commit |
+| — | `unpackfs` | Copies squashfs to target partition |
+| — | `bootloader` | Installs GRUB (UEFI + BIOS fallback) |
+| — | `packages` | Removes live-only packages; installs `insomnia-core` |
+| — | `shellprocess@post` | Enables TLP, NetworkManager, Plymouth; sets zsh for root |
+| 7 | `finished` | Done — reboot prompt |
+
+### Slideshow
+
+During the copy phase, a 5-slide QML slideshow plays in the installer window:
+`branding/insomnia/show.qml` — pure black background, `◉` eye motif, regime descriptions.
+
+### Config Files
+
+```
+archiso/airootfs/etc/calamares/
+├── settings.conf                    # Module sequence and branding selector
+├── branding/
+│   └── insomnia/
+│       ├── branding.desc            # Product name, URLs, OLED colour palette
+│       └── show.qml                 # Installation slideshow (QML/Qt)
+└── modules/
+    ├── welcome.conf                 # Requirement thresholds
+    ├── partition.conf               # FS types, EFI size, swap options
+    ├── users.conf                   # Default shell (zsh), groups, hostname
+    ├── unpackfs.conf                # squashfs source path
+    ├── displaymanager.conf          # GDM/SDDM detection
+    ├── bootloader.conf              # GRUB UEFI + legacy config
+    ├── packages.conf                # Post-install package operations
+    ├── services-systemd.conf        # Services to enable/disable on install
+    └── shellprocess@post.conf       # Final shell commands inside chroot
+```
+
+### Launching from TTY (EPM / no GUI)
+
+```bash
+# From the live TTY, start GNOME first:
+sudo systemctl start gdm
+
+# Or run Calamares directly in framebuffer (text mode — experimental):
+sudo calamares --debug
+```
+
+---
+
 ## Branding & Theming
+
+### 0. The Eye — Animated Logo (`insomnia-eye`)
+
+The blinking eye is the Insomnia System identity mark. It has three animation frames:
+
+```
+OPEN                         HALF-CLOSED               CLOSED
+. . . ─────────── . . .     . . . ─────────── . . .   . . . ─────────── . . .
+   ╱                 ╲          ╱                 ╲        ╱                 ╲
+  ╱  ╭─────────────╮  ╲     ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─     ═══════════════════════
+ │  │  ╭─────────╮  │  │     │ │  ╱  ╭─────╮  ╲ │ │    ═══════════════════════
+ │  │ │   │  ●  │   │  │     │ │ │   │  ◉  │   │ │ │    ═══════════════════════
+ │  │  ╰─────────╯  │  │     ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─        ╲               ╱
+  ╲  ╰─────────────╯  ╱          ╲               ╱         ╰─────────────╯
+' ' ' ─────────────── ' ' '   ' ' ' ─────────── ' ' '   ' ' ' ─────────── ' ' '
+```
+
+Run it directly in any terminal:
+```bash
+insomnia-eye           # animated loop (Ctrl+C to exit)
+insomnia-eye --once    # print one static frame and return
+```
+
+It auto-plays for 4 seconds when entering EPM (`insomnia-ctl epm`).
 
 ### 1. `archiso/airootfs/etc/os-release`
 
