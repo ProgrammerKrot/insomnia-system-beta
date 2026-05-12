@@ -1,0 +1,53 @@
+# Insomnia System — Global Zshrc
+# /etc/zsh/zshrc
+
+autoload -Uz compinit && compinit
+
+# History
+HISTFILE=~/.zhistory
+HISTSIZE=10000
+SAVEHIST=10000
+setopt HIST_IGNORE_DUPS HIST_IGNORE_SPACE SHARE_HISTORY INC_APPEND_HISTORY
+
+# Directory navigation
+setopt AUTO_CD AUTO_PUSHD PUSHD_IGNORE_DUPS
+
+# Plugins (from system packages)
+[[ -f /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]] && \
+  source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+
+[[ -f /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]] && \
+  source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+
+# Zoxide smart cd
+command -v zoxide &>/dev/null && eval "$(zoxide init zsh)"
+
+# Starship prompt (OLED-safe palette)
+export STARSHIP_CONFIG=/etc/insomnia/starship.toml
+command -v starship &>/dev/null && eval "$(starship init zsh)"
+
+# Modern CLI aliases
+alias ls='eza --icons --group-directories-first'
+alias ll='eza -la --icons --group-directories-first'
+alias lt='eza --tree --level=2 --icons'
+alias cat='bat --style=plain'
+alias grep='rg'
+alias find='fd'
+alias top='btop'
+alias vim='micro'
+alias vi='micro'
+
+# Insomnia System regime shortcuts
+alias epm='sudo insomnia-ctl epm'
+alias gui='sudo insomnia-ctl gui'
+alias regime='insomnia-ctl status'
+
+# Safety nets
+alias rm='rm -i'
+alias cp='cp -i'
+alias mv='mv -i'
+
+export PATH="/usr/local/bin:$HOME/.local/bin:$PATH"
+export EDITOR=micro
+export PAGER='bat --style=plain'
+export MANPAGER="sh -c 'col -bx | bat -l man --style=plain'"

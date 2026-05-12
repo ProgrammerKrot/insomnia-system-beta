@@ -1,0 +1,22 @@
+# Maintainer: You <you@example.com>
+pkgname=insomnia-zsh-prompt
+pkgver=0.1
+pkgrel=1
+pkgdesc="Insomnia System minimalist OLED-safe Starship prompt configuration"
+arch=('any')
+url="https://github.com/ProgrammerKrot/InsomniaSys-beta"
+license=('MIT')
+depends=('starship' 'zsh' 'ttf-jetbrains-mono-nerd')
+source=(
+  "starship.toml::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/config/epm/starship.toml"
+)
+sha256sums=('SKIP')
+
+package() {
+  install -Dm644 starship.toml "$pkgdir/etc/insomnia/starship.toml"
+
+  # Skel entry so new users get the prompt automatically
+  install -dm755 "$pkgdir/etc/skel"
+  echo 'export STARSHIP_CONFIG=/etc/insomnia/starship.toml' \
+    >> "$pkgdir/etc/skel/.zshenv"
+}

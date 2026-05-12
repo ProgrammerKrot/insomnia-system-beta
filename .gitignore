@@ -1,0 +1,24 @@
+# Build output
+output/
+*.iso
+*.iso.sha256
+*.iso.b2
+*.iso.asc
+
+# mkarchiso work directory
+/tmp/insomnia-work/
+
+# Package build artifacts
+pkgbuilds/*/*.pkg.tar.zst
+pkgbuilds/*/*.pkg.tar.zst.sig
+pkgbuilds/*/pkg/
+pkgbuilds/*/src/
+
+# Repo database (generated, not tracked)
+insomnia-repo/
+
+# Editor junk
+.vscode/
+*.swp
+*~
+.DS_Store

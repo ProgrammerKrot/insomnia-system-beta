@@ -1,0 +1,13 @@
+[Unit]
+Description=Insomnia System — First-boot initialization
+After=network.target
+ConditionPathExists=!/var/lib/insomnia/.initialized
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/insomnia-persist
+ExecStartPost=/usr/bin/touch /var/lib/insomnia/.initialized
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

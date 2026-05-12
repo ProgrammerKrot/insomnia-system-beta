@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# insomnia-persist — Detect and mount persistence partition on live session
+set -euo pipefail
+
+PERSIST_LABEL="persistence"
+PERSIST_MOUNT="/run/insomnia-persist"
+UNION_DIR="/union"
+
+_log() { echo "[insomnia-persist] $*"; }
+
+PERSIST_DEV=$(blkid -L "$PERSIST_LABEL" 2>/dev/null || true)
+
+if [[ -z "$PERSIST_DEV" ]]; then
+  _log "No persistence partition found (label: $PERSIST_LABEL). Running in volatile mode."
+  exit 0
+fi
+
+_log "Found persistence device: $PERSIST_DEV"
+mkdir -p "$PERSIST_MOUNT"
+mount "$PERSIST_DEV" "$PERSIST_MOUNT"
+
+if [[ ! -f "$PERSIST_MOUNT/persistence.conf" ]]; then
+  _log "persistence.conf missing. Creating default."
+  echo "/union" > "$PERSIST_MOUNT/persistence.conf"
+fi
+
+_log "Persistence mounted at $PERSIST_MOUNT"
+_log "Union directory: $UNION_DIR"

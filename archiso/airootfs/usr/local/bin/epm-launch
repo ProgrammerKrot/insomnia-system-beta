@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# epm-launch — Start the EPM Zellij dashboard session
+set -euo pipefail
+
+LAYOUT_FILE="/etc/insomnia/epm/zellij-layout.kdl"
+SESSION_NAME="insomnia-epm"
+
+clear
+cat /etc/issue
+
+[[ -n "${ZELLIJ:-}" ]] && { echo "[!] Already inside a Zellij session."; exit 0; }
+
+if zellij list-sessions 2>/dev/null | grep -q "$SESSION_NAME"; then
+  exec zellij attach "$SESSION_NAME"
+else
+  exec zellij --session "$SESSION_NAME" --layout "$LAYOUT_FILE"
+fi

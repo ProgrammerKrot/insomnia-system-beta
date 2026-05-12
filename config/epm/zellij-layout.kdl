@@ -1,0 +1,39 @@
+// Insomnia System — EPM Zellij Dashboard Layout
+// Save as: /etc/insomnia/epm/zellij-layout.kdl
+
+layout {
+    pane size=1 borderless=true {
+        plugin location="zellij:tab-bar"
+    }
+
+    pane split_direction="vertical" {
+        // Left column: monitor (70% width)
+        pane split_direction="horizontal" size="70%" {
+            pane command="btop" size="60%" {
+                args "--utf-force"
+                name "resources"
+            }
+            pane name="shell" {
+                // Primary interactive shell
+            }
+        }
+
+        // Right column: status panels (30% width)
+        pane split_direction="horizontal" size="30%" {
+            pane command="watch" size="33%" {
+                args "-n2" "-c" "acpi -V && echo && cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
+                name "power"
+            }
+            pane command="nmtui" size="34%" {
+                name "network"
+            }
+            pane name="files" size="33%" {
+                // ranger launches here via shell alias
+            }
+        }
+    }
+
+    pane size=2 borderless=true {
+        plugin location="zellij:status-bar"
+    }
+}

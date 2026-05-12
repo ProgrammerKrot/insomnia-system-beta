@@ -1,0 +1,48 @@
+# Maintainer: You <you@example.com>
+pkgname=insomnia-core
+pkgver=0.1
+pkgrel=1
+pkgdesc="Insomnia System core configuration and scripts meta-package"
+arch=('any')
+url="https://github.com/ProgrammerKrot/InsomniaSys-beta"
+license=('MIT')
+depends=(
+  'tlp'
+  'powertop'
+  'cpupower'
+  'zellij'
+  'btop'
+  'ranger'
+  'micro'
+  'zsh'
+  'starship'
+  'zoxide'
+  'fzf'
+  'ripgrep'
+  'fd'
+  'bat'
+  'eza'
+  'acpi'
+)
+source=(
+  "insomnia-ctl::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/archiso/airootfs/usr/local/bin/insomnia-ctl"
+  "epm-launch::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/archiso/airootfs/usr/local/bin/epm-launch"
+  "insomnia-persist::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/archiso/airootfs/usr/local/bin/insomnia-persist"
+  "zshrc::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/archiso/airootfs/etc/zsh/zshrc"
+  "zellij-layout.kdl::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/config/epm/zellij-layout.kdl"
+  "starship.toml::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/config/epm/starship.toml"
+  "btop.conf::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/config/epm/btop.conf"
+)
+sha256sums=(
+  'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
+)
+
+package() {
+  install -Dm755 insomnia-ctl      "$pkgdir/usr/local/bin/insomnia-ctl"
+  install -Dm755 epm-launch        "$pkgdir/usr/local/bin/epm-launch"
+  install -Dm755 insomnia-persist  "$pkgdir/usr/local/bin/insomnia-persist"
+  install -Dm644 zshrc             "$pkgdir/etc/zsh/zshrc"
+  install -Dm644 zellij-layout.kdl "$pkgdir/etc/insomnia/epm/zellij-layout.kdl"
+  install -Dm644 starship.toml     "$pkgdir/etc/insomnia/starship.toml"
+  install -Dm644 btop.conf         "$pkgdir/etc/insomnia/btop.conf"
+}

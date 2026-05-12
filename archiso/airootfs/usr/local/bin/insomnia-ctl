@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# /usr/local/bin/insomnia-ctl
+# Insomnia System — Regime Controller
+# Usage: insomnia-ctl [gui|epm|status|toggle]
+set -euo pipefail
+
+REGIME_FILE="/run/insomnia-regime"
+LOG_FILE="/var/log/insomnia-ctl.log"
+
+_log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
+_die() { _log "ERROR: $*"; exit 1; }
+
+_require_root() {
+  [[ $EUID -eq 0 ]] || _die "This operation requires root. Use: sudo insomnia-ctl $*"
+}
+
+_current_regime() {
+  [[ -f "$REGIME_FILE" ]] && cat "$REGIME_FILE" || echo "gui"
+}
+
+_status() {
+  local regime
+  regime=$(_current_regime)
+  local cpu_gov
+  cpu_gov=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || echo "unknown")
+  local bat_pct
+  bat_pct=$(cat /sys/class/power_supply/BAT0/capacity 2>/dev/null || echo "N/A")
+  local bat_status
+  bat_status=$(cat /sys/class/power_supply/BAT0/status 2>/dev/null || echo "Unknown")
+
+  cat <<EOF
+
+  ╔══════════════════════════════════╗
+  ║     INSOMNIA SYSTEM — STATUS     ║
+  ╠══════════════════════════════════╣
+  ║  Regime    : $(printf '%-22s' "${regime^^}")║
+  ║  CPU Gov.  : $(printf '%-22s' "$cpu_gov")║
+  ║  Battery   : $(printf '%-22s' "${bat_pct}% (${bat_status})")║
+  ║  Display   : $(printf '%-22s' "$(systemctl is-active gdm 2>/dev/null || echo inactive)")║
+  ╚══════════════════════════════════╝
+
+EOF
+}
+
+_enter_epm() {
+  _require_root
+  _log "Entering Extreme Power Mode..."
+
+  for dm in gdm sddm lightdm; do
+    systemctl is-active --quiet "$dm" 2>/dev/null && {
+      _log "Stopping $dm..."
+      systemctl stop "$dm"
+    }
+  done
+
+  pkill -x "gnome-shell" 2>/dev/null || true
+  pkill -x "plasmashell" 2>/dev/null || true
+  pkill -x "Xorg"        2>/dev/null || true
+  pkill -x "weston"      2>/dev/null || true
+
+  _log "Setting CPU governor: powersave"
+  for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
+    echo powersave > "$cpu"
+  done
+
+  systemctl is-active --quiet tlp && tlp bat 2>/dev/null || true
+
+  local backlight_dir
+  backlight_dir=$(ls /sys/class/backlight/ 2>/dev/null | head -1)
+  if [[ -n "$backlight_dir" ]]; then
+    local max_brightness
+    max_brightness=$(cat "/sys/class/backlight/${backlight_dir}/max_brightness")
+    local target_brightness=$(( max_brightness / 10 ))
+    _log "Setting backlight to ${target_brightness}/${max_brightness}"
+    echo "$target_brightness" > "/sys/class/backlight/${backlight_dir}/brightness"
+  fi
+
+  # Uncomment to disable radios on EPM entry:
+  # rfkill block wifi
+  # rfkill block bluetooth
+
+  echo "epm" > "$REGIME_FILE"
+  _log "EPM active."
+
+  if [[ -t 1 ]]; then
+    epm-launch
+  else
+    chvt 1
+    runuser -l "$SUDO_USER" -c "epm-launch" &
+  fi
+}
+
+_enter_gui() {
+  _require_root
+  _log "Entering GUI mode..."
+
+  _log "Setting CPU governor: schedutil"
+  for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
+    echo schedutil > "$cpu"
+  done
+
+  rfkill unblock all 2>/dev/null || true
+
+  local backlight_dir
+  backlight_dir=$(ls /sys/class/backlight/ 2>/dev/null | head -1)
+  if [[ -n "$backlight_dir" ]]; then
+    local max_brightness
+    max_brightness=$(cat "/sys/class/backlight/${backlight_dir}/max_brightness")
+    local comfortable=$(( max_brightness * 4 / 10 ))
+    echo "$comfortable" > "/sys/class/backlight/${backlight_dir}/brightness"
+  fi
+
+  if command -v gdm &>/dev/null; then
+    systemctl start gdm
+  elif command -v sddm &>/dev/null; then
+    systemctl start sddm
+  else
+    _log "No display manager found."
+  fi
+
+  echo "gui" > "$REGIME_FILE"
+  _log "GUI mode active."
+}
+
+_toggle() {
+  local current
+  current=$(_current_regime)
+  if [[ "$current" == "epm" ]]; then
+    _enter_gui
+  else
+    _enter_epm
+  fi
+}
+
+case "${1:-status}" in
+  gui)    _enter_gui    ;;
+  epm)    _enter_epm    ;;
+  status) _status       ;;
+  toggle) _toggle       ;;
+  *)
+    echo "Usage: insomnia-ctl [gui|epm|status|toggle]"
+    exit 1
+    ;;
+esac

@@ -1,0 +1,44 @@
+# Maintainer: You <you@example.com>
+pkgname=insomnia-theme-oled
+pkgver=0.1
+pkgrel=1
+pkgdesc="Insomnia System OLED dark theme assets (GTK, GNOME dconf, Plymouth)"
+arch=('any')
+url="https://github.com/ProgrammerKrot/InsomniaSys-beta"
+license=('MIT')
+depends=(
+  'plymouth'
+  'papirus-icon-theme'
+)
+optdepends=(
+  'gnome-shell: for GNOME dconf profile'
+  'gnome-tweaks: for applying GTK theme'
+)
+source=(
+  "insomnia.plymouth::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/archiso/airootfs/usr/share/plymouth/themes/insomnia/insomnia.plymouth"
+  "insomnia.script::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/archiso/airootfs/usr/share/plymouth/themes/insomnia/insomnia.script"
+  "01-oled-dark::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/config/gnome/dconf-insomnia.ini"
+)
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+
+package() {
+  # Plymouth theme
+  install -Dm644 insomnia.plymouth \
+    "$pkgdir/usr/share/plymouth/themes/insomnia/insomnia.plymouth"
+  install -Dm644 insomnia.script \
+    "$pkgdir/usr/share/plymouth/themes/insomnia/insomnia.script"
+
+  # GNOME dconf profile
+  install -Dm644 01-oled-dark \
+    "$pkgdir/etc/dconf/db/insomnia.d/01-oled-dark"
+  install -dm755 "$pkgdir/etc/dconf/profile"
+  echo -e "user-db:user\nsystem-db:insomnia" \
+    > "$pkgdir/etc/dconf/profile/insomnia"
+}
+
+post_install() {
+  plymouth-set-default-theme insomnia
+  dconf update
+  echo "Insomnia OLED theme applied."
+  echo "Run 'sudo mkinitcpio -P' to embed Plymouth into initramfs."
+}

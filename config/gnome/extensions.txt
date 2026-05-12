@@ -1,0 +1,12 @@
+# Required GNOME Extensions for Insomnia System
+# Install via: gnome-extensions install <id>
+# Or: https://extensions.gnome.org/
+
+# Essential
+user-theme@gnome-shell-extensions.gcampax.github.com
+blur-my-shell@aunetx
+
+# Optional but recommended
+dash-to-dock@micxgx.gmail.com
+caffeine@patapon.info
+battery-time@grillenzweig.info

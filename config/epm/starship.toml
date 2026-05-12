@@ -1,0 +1,73 @@
+# Insomnia System — Starship prompt configuration
+# OLED-safe: no bright backgrounds, minimal glyph usage
+
+format = """
+$directory$git_branch$git_status$cmd_duration
+$character"""
+
+[directory]
+style = "bold white"
+truncation_length = 3
+truncate_to_repo = true
+read_only = " 󰌾"
+
+[git_branch]
+symbol = " "
+style = "bold dimmed white"
+truncation_length = 20
+
+[git_status]
+style = "bold red"
+ahead = "⇡${count}"
+behind = "⇣${count}"
+diverged = "⇕⇡${ahead_count}⇣${behind_count}"
+untracked = "?${count}"
+modified = "!${count}"
+staged = "+${count}"
+deleted = "✘${count}"
+
+[cmd_duration]
+min_time = 500
+style = "dimmed white"
+format = "took [$duration]($style) "
+
+[character]
+success_symbol = "[❯](bold white)"
+error_symbol = "[❯](bold red)"
+vimcmd_symbol = "[❮](bold white)"
+
+[battery]
+full_symbol = "█"
+charging_symbol = "↑"
+discharging_symbol = "↓"
+unknown_symbol = "░"
+empty_symbol = "▱"
+
+[[battery.display]]
+threshold = 20
+style = "bold red"
+
+[[battery.display]]
+threshold = 50
+style = "bold yellow"
+
+[[battery.display]]
+threshold = 80
+style = "white"
+
+[hostname]
+ssh_only = true
+style = "bold dimmed white"
+
+[username]
+show_always = false
+style_root = "bold red"
+style_user = "dimmed white"
+
+[line_break]
+disabled = false
+
+[jobs]
+symbol = "✦"
+style = "bold dimmed white"
+number_threshold = 1
