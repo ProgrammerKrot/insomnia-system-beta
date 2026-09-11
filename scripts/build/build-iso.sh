@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# build-iso.sh — Insomnia System ISO builder
-# Usage: sudo ./scripts/build/build-iso.sh [--dry-run] [--profile epm-only]
+# build-iso.sh — Merge this overlay onto archiso releng, then run mkarchiso
+# Usage: sudo ./scripts/build/build-iso.sh [--dry-run] [--profile epm-only|full]
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-PROFILE_DIR="$REPO_ROOT/archiso"
+OVERLAY_DIR="$REPO_ROOT/archiso"
+RELENG_DIR="/usr/share/archiso/configs/releng"
 OUT_DIR="$REPO_ROOT/output"
 WORK_DIR="/tmp/insomnia-work"
 ISO_LABEL="INSOMNIA_$(date +%Y%m)"
@@ -27,14 +28,31 @@ done
 
 [[ $EUID -ne 0 ]] && _err "Must run as root: sudo $0"
 command -v mkarchiso &>/dev/null || _err "archiso not installed. Run: pacman -S archiso"
+[[ -d "$RELENG_DIR" ]] || _err "Missing $RELENG_DIR — install archiso"
+
+PROFILE_DIR="$(mktemp -d)/insomnia-profile"
+trap 'rm -rf "$(dirname "$PROFILE_DIR")"' EXIT
+
+_log "Copying official releng profile..."
+cp -a "$RELENG_DIR/." "$PROFILE_DIR/"
+
+_log "Merging Insomnia airootfs overlay..."
+cp -a "$OVERLAY_DIR/airootfs/." "$PROFILE_DIR/airootfs/"
+
+_log "Applying Insomnia package list..."
+cp "$OVERLAY_DIR/packages.x86_64" "$PROFILE_DIR/packages.x86_64"
+
+if [[ -f "$PROFILE_DIR/profiledef.sh" ]]; then
+  sed -i \
+    -e 's/^iso_name=.*/iso_name="insomnia"/' \
+    -e 's/^iso_publisher=.*/iso_publisher="Insomnia System <https:\/\/github.com\/ProgrammerKrot\/InsomniaSys-beta>"/' \
+    -e 's/^iso_application=.*/iso_application="Insomnia System Live\/Rescue"/' \
+    "$PROFILE_DIR/profiledef.sh" || true
+fi
 
 if [[ "$PROFILE_VARIANT" == "epm-only" ]]; then
-  _log "EPM-only build: removing GUI packages from list..."
-  # Create a temp profile with GUI packages stripped
-  WORK_PROFILE="$(mktemp -d)/insomnia-epm"
-  cp -a "$PROFILE_DIR" "$WORK_PROFILE"
-  sed -i '/^# ── GUI/,/^# ──/{ /^[a-z]/d }' "$WORK_PROFILE/packages.x86_64"
-  PROFILE_DIR="$WORK_PROFILE"
+  _log "EPM-only build: stripping GUI packages from list..."
+  sed -i '/^# ── GUI/,/^# ──/{ /^[a-z]/d }' "$PROFILE_DIR/packages.x86_64"
 fi
 
 _log "Building Insomnia System ISO"
@@ -44,7 +62,8 @@ _log "  Label    : $ISO_LABEL"
 _log "  Variant  : $PROFILE_VARIANT"
 
 if [[ "$DRY_RUN" == "true" ]]; then
-  _ok "Dry run complete. Profile looks valid."
+  _ok "Dry run complete. Merged profile ready (not building)."
+  _log "Package count: $(grep -cE '^[a-zA-Z0-9]' "$PROFILE_DIR/packages.x86_64" || true)"
   exit 0
 fi
 

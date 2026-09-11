@@ -5,6 +5,6 @@ ID_LIKE=arch
 BUILD_ID=rolling
 ANSI_COLOR="1;37"
 HOME_URL="https://github.com/ProgrammerKrot/InsomniaSys-beta"
-DOCUMENTATION_URL="https://github.com/ProgrammerKrot/InsomniaSys-beta/wiki"
+DOCUMENTATION_URL="https://github.com/ProgrammerKrot/InsomniaSys-beta#readme"
 SUPPORT_URL="https://github.com/ProgrammerKrot/InsomniaSys-beta/issues"
 LOGO=insomnia-logo

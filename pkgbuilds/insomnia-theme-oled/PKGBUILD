@@ -1,44 +1,36 @@
-# Maintainer: You <you@example.com>
+# Maintainer: ProgrammerKrot
 pkgname=insomnia-theme-oled
 pkgver=0.1
 pkgrel=1
-pkgdesc="Insomnia System OLED dark theme assets (GTK, GNOME dconf, Plymouth)"
+pkgdesc="Insomnia System OLED-oriented GNOME dconf profile"
 arch=('any')
 url="https://github.com/ProgrammerKrot/InsomniaSys-beta"
 license=('MIT')
 depends=(
-  'plymouth'
   'papirus-icon-theme'
 )
 optdepends=(
-  'gnome-shell: for GNOME dconf profile'
-  'gnome-tweaks: for applying GTK theme'
+  'gnome-shell: apply dconf profile'
+  'gnome-tweaks: tweak GTK theme'
+  'plymouth: boot splash (theme assets planned)'
 )
 source=(
-  "insomnia.plymouth::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/archiso/airootfs/usr/share/plymouth/themes/insomnia/insomnia.plymouth"
-  "insomnia.script::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/archiso/airootfs/usr/share/plymouth/themes/insomnia/insomnia.script"
   "01-oled-dark::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/config/gnome/dconf-insomnia.ini"
 )
-sha256sums=('SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP')
 
 package() {
-  # Plymouth theme
-  install -Dm644 insomnia.plymouth \
-    "$pkgdir/usr/share/plymouth/themes/insomnia/insomnia.plymouth"
-  install -Dm644 insomnia.script \
-    "$pkgdir/usr/share/plymouth/themes/insomnia/insomnia.script"
-
-  # GNOME dconf profile
   install -Dm644 01-oled-dark \
     "$pkgdir/etc/dconf/db/insomnia.d/01-oled-dark"
   install -dm755 "$pkgdir/etc/dconf/profile"
-  echo -e "user-db:user\nsystem-db:insomnia" \
+  printf '%s\n' 'user-db:user' 'system-db:insomnia' \
     > "$pkgdir/etc/dconf/profile/insomnia"
 }
 
 post_install() {
-  plymouth-set-default-theme insomnia
-  dconf update
-  echo "Insomnia OLED theme applied."
-  echo "Run 'sudo mkinitcpio -P' to embed Plymouth into initramfs."
+  if command -v dconf >/dev/null 2>&1; then
+    dconf update || true
+  fi
+  echo "Insomnia GNOME dconf profile installed."
+  echo "Plymouth theme files are not in this package yet."
 }

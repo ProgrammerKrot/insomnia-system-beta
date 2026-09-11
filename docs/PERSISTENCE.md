@@ -36,7 +36,8 @@ sudo umount /mnt
 
 ## Bootloader Configuration
 
-The persistence boot entry passes these kernel parameters:
+After the ISO build merges onto archiso `releng`, add a persistence boot entry
+(or edit an existing one) with kernel parameters:
 
 ```
 persistence persistence-label=persistence cow_spacesize=1G
@@ -44,6 +45,9 @@ persistence persistence-label=persistence cow_spacesize=1G
 
 `cow_spacesize` limits copy-on-write RAM usage during the session.
 Increase if you work with large files in the live session before sync.
+
+Boot menu files for that entry are not customized in this overlay yet; use the
+merged releng EFI/syslinux configs as the starting point.
 
 ## Backup Persistence Data
 

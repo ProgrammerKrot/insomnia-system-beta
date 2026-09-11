@@ -1,5 +1,8 @@
 # Custom Pacman Repository — Hosting Guide
 
+The `[insomnia]` block in `pacman.conf` is commented out until this is live.
+Packages in `packages.x86_64` that depend on it stay commented too.
+
 ## Strategy: GitHub Pages as a Static Pacman Repo
 
 GitHub Pages serves static files over HTTPS, making it a zero-cost
