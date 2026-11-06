@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # build-iso.sh — Merge this overlay onto archiso releng, then run mkarchiso
-# Usage: sudo ./scripts/build/build-iso.sh [--dry-run] [--profile epm-only|full]
+# Usage: sudo ./scripts/build/build-iso.sh [--dry-run] [--profile epm-only|full] [--no-security]
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -12,6 +12,7 @@ WORK_DIR="/tmp/insomnia-work"
 ISO_LABEL="INSOMNIA_$(date +%Y%m)"
 DRY_RUN=false
 PROFILE_VARIANT="full"
+NO_SECURITY=false
 
 _log()  { echo -e "\e[1;37m[*]\e[0m $*"; }
 _ok()   { echo -e "\e[1;32m[+]\e[0m $*"; }
@@ -21,6 +22,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run)        DRY_RUN=true ;;
     --profile)        PROFILE_VARIANT="$2"; shift ;;
+    --no-security)    NO_SECURITY=true ;;
     *)                _err "Unknown option: $1" ;;
   esac
   shift
@@ -39,13 +41,32 @@ cp -a "$RELENG_DIR/." "$PROFILE_DIR/"
 _log "Merging Insomnia airootfs overlay..."
 cp -a "$OVERLAY_DIR/airootfs/." "$PROFILE_DIR/airootfs/"
 
+_log "Staging EPM / shell / vim configs into the image..."
+AIROOT="$PROFILE_DIR/airootfs"
+install -Dm644 "$REPO_ROOT/config/epm/zellij-layout.kdl" "$AIROOT/etc/insomnia/epm/zellij-layout.kdl"
+install -Dm644 "$REPO_ROOT/config/epm/zellij-config.kdl" "$AIROOT/etc/insomnia/epm/zellij-config.kdl"
+install -Dm644 "$REPO_ROOT/config/epm/starship.toml"     "$AIROOT/etc/insomnia/starship.toml"
+install -Dm644 "$REPO_ROOT/config/epm/btop.conf"         "$AIROOT/etc/skel/.config/btop/btop.conf"
+install -Dm644 "$REPO_ROOT/config/vim/vimrc"             "$AIROOT/etc/skel/.vimrc"
+install -Dm644 "$REPO_ROOT/config/vim/vimrc"             "$AIROOT/root/.vimrc"
+
 _log "Applying Insomnia package list..."
 cp "$OVERLAY_DIR/packages.x86_64" "$PROFILE_DIR/packages.x86_64"
+
+# mkarchiso copies airootfs WITHOUT preserving modes; executables need an
+# explicit file_permissions entry or they land in the image as 0644.
+{
+  echo ""
+  echo "# ── Insomnia executables ──"
+  for f in "$OVERLAY_DIR"/airootfs/usr/local/bin/*; do
+    echo "file_permissions+=([\"/usr/local/bin/$(basename "$f")\"]=\"0:0:755\")"
+  done
+} >> "$PROFILE_DIR/profiledef.sh"
 
 if [[ -f "$PROFILE_DIR/profiledef.sh" ]]; then
   sed -i \
     -e 's/^iso_name=.*/iso_name="insomnia"/' \
-    -e 's/^iso_publisher=.*/iso_publisher="Insomnia System <https:\/\/github.com\/ProgrammerKrot\/InsomniaSys-beta>"/' \
+    -e 's/^iso_publisher=.*/iso_publisher="Insomnia System <https:\/\/github.com\/ProgrammerKrot\/insomnia-system-beta>"/' \
     -e 's/^iso_application=.*/iso_application="Insomnia System Live\/Rescue"/' \
     "$PROFILE_DIR/profiledef.sh" || true
 fi
@@ -53,6 +74,11 @@ fi
 if [[ "$PROFILE_VARIANT" == "epm-only" ]]; then
   _log "EPM-only build: stripping GUI packages from list..."
   sed -i '/^# ── GUI/,/^# ──/{ /^[a-z]/d }' "$PROFILE_DIR/packages.x86_64"
+fi
+
+if [[ "$NO_SECURITY" == "true" ]]; then
+  _log "Stripping Security Toolkit packages..."
+  sed -i '/^# ── Security Toolkit/,/^# ──/{ /^[a-z]/d }' "$PROFILE_DIR/packages.x86_64"
 fi
 
 _log "Building Insomnia System ISO"
