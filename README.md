@@ -11,8 +11,13 @@ This repo is a **working blueprint**, not a finished shipping distro. Scripts an
 | Package list | `archiso/packages.x86_64` |
 | Live overlay (hostname, zsh, systemd, pacman) | `archiso/airootfs/` |
 | Regime switcher + EPM launcher | `usr/local/bin/insomnia-ctl`, `epm-launch` |
+| EPM power engine (snapshot/restore) | `usr/local/bin/insomnia-power` |
+| Battery telemetry / 12 h budget | `usr/local/bin/insomnia-batt` |
+| INSOMNIA//NEON console palette | `usr/local/bin/insomnia-palette` |
+| Battery profile (both regimes) | `etc/tlp.d/90-insomnia.conf` |
 | Calamares settings + branding | `etc/calamares/` |
 | EPM configs (zellij, btop, starship) | `config/epm/` |
+| Vim config (copied verbatim into `/etc/skel`, `/root`) | `config/vim/vimrc` |
 | GNOME dconf dump + extension list | `config/gnome/` |
 | PKGBUILD stubs | `pkgbuilds/` |
 | Build / flash / repo scripts | `scripts/` |
@@ -24,7 +29,7 @@ This repo is a **working blueprint**, not a finished shipping distro. Scripts an
 
 **Not in this repo yet (planned):** complete Plymouth theme files, Plasma theme bundle, hosted `insomnia` pacman repo, TLP drop-in overrides, signed package pipeline beyond `update-repo.sh`.
 
-Custom packages (`insomnia-core`, etc.) stay **commented out** in `packages.x86_64` until you host the repo.
+Custom packages (`insomnia-core`, etc.) **and `calamares`** (AUR-only on Arch) stay **commented out** in `packages.x86_64` until you host the repo. Until then the ISO has no graphical installer.
 
 ## Requirements
 
@@ -36,13 +41,15 @@ Build merges this tree onto `/usr/share/archiso/configs/releng` (needs `archiso`
 ## Build ISO
 
 ```bash
-git clone https://github.com/ProgrammerKrot/InsomniaSys-beta.git
-cd InsomniaSys-beta
+git clone https://github.com/ProgrammerKrot/insomnia-system-beta.git
+cd insomnia-system-beta
 
 sudo ./scripts/build/build-iso.sh --dry-run
 sudo ./scripts/build/build-iso.sh
 # optional: strip GUI packages
 sudo ./scripts/build/build-iso.sh --profile epm-only
+# optional: leave out the security toolkit
+sudo ./scripts/build/build-iso.sh --no-security
 
 ./scripts/build/sign-iso.sh output/*.iso
 ```
@@ -60,13 +67,28 @@ Details: [`docs/PERSISTENCE.md`](docs/PERSISTENCE.md).
 ## Extreme Power Mode
 
 ```bash
-sudo insomnia-ctl epm      # stop DM, powersave governor, dim backlight, launch EPM
-sudo insomnia-ctl gui     # restore display manager
+sudo insomnia-ctl epm      # stop DM, tune CPU/GPU/buses/backlight, BT off, Wi-Fi power-save
+sudo insomnia-ctl dark     # same, every radio off, deeper caps
+sudo insomnia-ctl gui      # restore every knob exactly + start display manager
 insomnia-ctl status
-sudo insomnia-ctl toggle
+batt                       # live draw, ETA, battery wear, 12 h power budget
 ```
 
-EPM session layout: `config/epm/zellij-layout.kdl`. Power notes: [`docs/EPM-INTERNALS.md`](docs/EPM-INTERNALS.md).
+Dashboard (zellij, INSOMNIA//NEON theme): `OPS` tab = shell + power panel;
+`SYS` (btop), `NET` (nmtui, bandwhich), `FILES` (lf) start suspended so they
+cost nothing until opened. Layout: `config/epm/zellij-layout.kdl`.
+
+How it saves power, what each regime touches, and the honest battery math:
+[`docs/EPM-INTERNALS.md`](docs/EPM-INTERNALS.md).
+
+## Packages
+
+Besides the base system, the ISO ships a CLI workstation (vim, lf/nnn/mc,
+neomutt, weechat, newsboat, calcurse, cmus, mpv…), network tools, and a
+**Security Toolkit** of Kali-equivalent tools from the official Arch repos
+(nmap, wireshark-cli, aircrack-ng, hcxtools, bettercap, hashcat, john, hydra,
+sqlmap, metasploit, radare2, …). Drop that section with
+`build-iso.sh --no-security`.
 
 ## Custom packages
 
