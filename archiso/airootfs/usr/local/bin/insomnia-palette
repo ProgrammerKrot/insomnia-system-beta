@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# /usr/local/bin/insomnia-palette — load the INSOMNIA//NEON palette into the
+# Linux virtual console.
+#
+# The kernel console only has 16 colours, so the whole EPM look is built on
+# redefining those 16 slots. Every EPM component (zellij theme, btop in TTY
+# mode, starship, insomnia-batt) addresses colours by index 0–15, so they all
+# pick up this palette automatically.
+#
+# Pure black background on purpose: free on OLED, harmless on LCD.
+# No-op outside a real VT (terminal emulators keep their own palette).
+
+[[ ${TERM:-} == linux ]] || exit 0
+
+PALETTE=(
+  000000  # 0  black      — true black
+  ff2a55  # 1  red        — alert
+  2bff88  # 2  green      — ok / acid
+  f5f05a  # 3  yellow     — warning
+  3d6bff  # 4  blue
+  ff2fd0  # 5  magenta    — primary accent
+  00e5ff  # 6  cyan       — secondary accent
+  b8bccf  # 7  white      — body text (dimmed to save eyes at low backlight)
+  3a3f55  # 8  bright black — frames, separators
+  ff5c7a  # 9
+  7dffb4  # 10
+  fffb9e  # 11
+  6e93ff  # 12
+  ff7ae3  # 13
+  6ff6ff  # 14
+  ffffff  # 15
+)
+
+for i in "${!PALETTE[@]}"; do
+  printf '\e]P%X%s' "$i" "${PALETTE[$i]}"
+done
+# Repaint so the new background takes effect immediately
+[[ ${1:-} == --clear ]] && printf '\e[H\e[2J'
+exit 0

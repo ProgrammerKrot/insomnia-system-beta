@@ -5,8 +5,8 @@
 #   --loop   animate forever (default)
 set -euo pipefail
 
-W='\e[1;37m'   # bold white
-D='\e[2;37m'   # dim white
+W='\e[1;36m'   # bold cyan  (neon palette slot 6)
+D='\e[0;35m'   # magenta    (neon palette slot 5)
 R='\e[0m'      # reset
 CL='\e[2J\e[H' # clear + home
 
@@ -60,7 +60,7 @@ CLOSED=(
 "              ' ' ' ─────────────── ' ' '         "
 )
 
-LABEL="  I N S O M N I A   S Y S T E M   v0.1"
+LABEL="  I N S O M N I A // S Y S T E M   v0.1"
 
 # ── Render a frame ────────────────────────────────────────────────────────────
 
