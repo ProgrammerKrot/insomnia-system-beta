@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
 # /usr/local/bin/insomnia-ctl
 # Insomnia System — Regime Controller
-# Usage: insomnia-ctl [gui|epm|status|toggle]
+#
+# Usage: insomnia-ctl [gui|epm|dark|status|toggle]
+#   epm     Extreme Power Mode: TTY dashboard, Wi-Fi kept (power-save), BT off
+#   dark    EPM with every radio off and deeper CPU/backlight caps
+#   gui     restore the exact pre-EPM power state and start the display manager
+#   status  regime, governor, battery line
+#   toggle  gui <-> epm
 set -euo pipefail
 
 REGIME_FILE="/run/insomnia-regime"
 LOG_FILE="/var/log/insomnia-ctl.log"
+DISPLAY_MANAGERS=(gdm sddm lightdm)
+GUI_PROCS=(gnome-shell plasmashell Xorg Xwayland weston)
 
 _log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
 _die() { _log "ERROR: $*"; exit 1; }
@@ -18,127 +26,107 @@ _current_regime() {
   [[ -f "$REGIME_FILE" ]] && cat "$REGIME_FILE" || echo "gui"
 }
 
+_active_dm() {
+  local dm
+  for dm in "${DISPLAY_MANAGERS[@]}"; do
+    systemctl is-active --quiet "$dm" 2>/dev/null && { echo "$dm"; return; }
+  done
+  echo "none"
+}
+
 _status() {
-  local regime
+  local regime cpu_gov epp
   regime=$(_current_regime)
-  local cpu_gov
   cpu_gov=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || echo "unknown")
-  local bat_pct
-  bat_pct=$(cat /sys/class/power_supply/BAT0/capacity 2>/dev/null || echo "N/A")
-  local bat_status
-  bat_status=$(cat /sys/class/power_supply/BAT0/status 2>/dev/null || echo "Unknown")
+  epp=$(cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null || echo "-")
 
-  cat <<EOF
+  printf '\n  \e[35m╔══════════════════════════════════════════╗\e[0m\n'
+  printf '  \e[35m║\e[0m \e[1;36m%-40s\e[0m \e[35m║\e[0m\n' "INSOMNIA//STATUS"
+  printf '  \e[35m╠══════════════════════════════════════════╣\e[0m\n'
+  printf '  \e[35m║\e[0m  Regime   : %-29s \e[35m║\e[0m\n' "${regime^^}"
+  printf '  \e[35m║\e[0m  CPU      : %-29s \e[35m║\e[0m\n' "$cpu_gov / $epp"
+  printf '  \e[35m║\e[0m  Battery  : %-29s \e[35m║\e[0m\n' "$(insomnia-batt --line 2>/dev/null || echo n/a)"
+  printf '  \e[35m║\e[0m  Display  : %-29s \e[35m║\e[0m\n' "$(_active_dm)"
+  printf '  \e[35m╚══════════════════════════════════════════╝\e[0m\n\n'
+}
 
-  ╔══════════════════════════════════╗
-  ║     INSOMNIA SYSTEM — STATUS     ║
-  ╠══════════════════════════════════╣
-  ║  Regime    : $(printf '%-22s' "${regime^^}")║
-  ║  CPU Gov.  : $(printf '%-22s' "$cpu_gov")║
-  ║  Battery   : $(printf '%-22s' "${bat_pct}% (${bat_status})")║
-  ║  Display   : $(printf '%-22s' "$(systemctl is-active gdm 2>/dev/null || echo inactive)")║
-  ╚══════════════════════════════════╝
-
-EOF
+_stop_gui() {
+  local dm p
+  for dm in "${DISPLAY_MANAGERS[@]}"; do
+    if systemctl is-active --quiet "$dm" 2>/dev/null; then
+      _log "Stopping $dm..."
+      systemctl stop "$dm"
+      echo "$dm" > /run/insomnia-dm   # remember which one to bring back
+    fi
+  done
+  for p in "${GUI_PROCS[@]}"; do pkill -x "$p" 2>/dev/null || true; done
 }
 
 _enter_epm() {
-  _require_root
-  _log "Entering Extreme Power Mode..."
+  local level=${1:-epm}
+  _require_root "$level"
+  _log "Entering Extreme Power Mode (level: $level)..."
 
-  for dm in gdm sddm lightdm; do
-    systemctl is-active --quiet "$dm" 2>/dev/null && {
-      _log "Stopping $dm..."
-      systemctl stop "$dm"
-    }
-  done
+  _stop_gui
+  insomnia-power apply "$level"
 
-  pkill -x "gnome-shell" 2>/dev/null || true
-  pkill -x "plasmashell" 2>/dev/null || true
-  pkill -x "Xorg"        2>/dev/null || true
-  pkill -x "weston"      2>/dev/null || true
-
-  _log "Setting CPU governor: powersave"
-  for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
-    echo powersave > "$cpu"
-  done
-
-  systemctl is-active --quiet tlp && tlp bat 2>/dev/null || true
-
-  local backlight_dir
-  backlight_dir=$(ls /sys/class/backlight/ 2>/dev/null | head -1)
-  if [[ -n "$backlight_dir" ]]; then
-    local max_brightness
-    max_brightness=$(cat "/sys/class/backlight/${backlight_dir}/max_brightness")
-    local target_brightness=$(( max_brightness / 10 ))
-    _log "Setting backlight to ${target_brightness}/${max_brightness}"
-    echo "$target_brightness" > "/sys/class/backlight/${backlight_dir}/brightness"
-  fi
-
-  # Uncomment to disable radios on EPM entry:
-  # rfkill block wifi
-  # rfkill block bluetooth
-
-  echo "epm" > "$REGIME_FILE"
+  echo "$level" > "$REGIME_FILE"
   _log "EPM active."
 
-  if [[ -t 1 ]]; then
-    epm-launch
+  local user=${SUDO_USER:-root}
+  if [[ -t 0 && $(tty) == /dev/tty[0-9]* ]]; then
+    # Already on a VT (typed `epm` at a console): run the dashboard right here.
+    exec runuser -u "$user" -- epm-launch
   else
-    chvt 1
-    runuser -l "$SUDO_USER" -c "epm-launch" &
+    # Called from a GUI terminal that just died with the session: open a
+    # fresh VT, switch to it, and start the dashboard there as the user.
+    openvt -s -- runuser -l "$user" -c epm-launch
   fi
 }
 
 _enter_gui() {
-  _require_root
+  _require_root gui
   _log "Entering GUI mode..."
 
-  _log "Setting CPU governor: schedutil"
-  for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
-    echo schedutil > "$cpu"
-  done
+  insomnia-power restore
+  pkill -u "${SUDO_USER:-root}" -x zellij 2>/dev/null || true
 
-  rfkill unblock all 2>/dev/null || true
-
-  local backlight_dir
-  backlight_dir=$(ls /sys/class/backlight/ 2>/dev/null | head -1)
-  if [[ -n "$backlight_dir" ]]; then
-    local max_brightness
-    max_brightness=$(cat "/sys/class/backlight/${backlight_dir}/max_brightness")
-    local comfortable=$(( max_brightness * 4 / 10 ))
-    echo "$comfortable" > "/sys/class/backlight/${backlight_dir}/brightness"
+  local dm
+  dm=$(cat /run/insomnia-dm 2>/dev/null || true)
+  if [[ -z $dm ]]; then
+    for dm in "${DISPLAY_MANAGERS[@]}"; do
+      systemctl cat "$dm" &>/dev/null && break
+      dm=
+    done
   fi
-
-  if command -v gdm &>/dev/null; then
-    systemctl start gdm
-  elif command -v sddm &>/dev/null; then
-    systemctl start sddm
-  else
-    _log "No display manager found."
-  fi
-
+  rm -f /run/insomnia-dm
   echo "gui" > "$REGIME_FILE"
+
+  if [[ -n $dm ]]; then
+    _log "Starting $dm..."
+    systemctl start "$dm"
+  else
+    _log "No display manager installed — staying on the console."
+  fi
   _log "GUI mode active."
 }
 
 _toggle() {
-  local current
-  current=$(_current_regime)
-  if [[ "$current" == "epm" ]]; then
-    _enter_gui
+  if [[ $(_current_regime) == gui ]]; then
+    _enter_epm epm
   else
-    _enter_epm
+    _enter_gui
   fi
 }
 
 case "${1:-status}" in
-  gui)    _enter_gui    ;;
-  epm)    _enter_epm    ;;
-  status) _status       ;;
-  toggle) _toggle       ;;
+  gui)    _enter_gui      ;;
+  epm)    _enter_epm epm  ;;
+  dark)   _enter_epm dark ;;
+  status) _status         ;;
+  toggle) _toggle         ;;
   *)
-    echo "Usage: insomnia-ctl [gui|epm|status|toggle]"
+    echo "Usage: insomnia-ctl [gui|epm|dark|status|toggle]"
     exit 1
     ;;
 esac
