@@ -26,21 +26,31 @@ command -v zoxide &>/dev/null && eval "$(zoxide init zsh)"
 export STARSHIP_CONFIG=/etc/insomnia/starship.toml
 command -v starship &>/dev/null && eval "$(starship init zsh)"
 
+# Raw Linux console (EPM): load the neon palette, and no Nerd Font icons
+if [[ $TERM == linux ]]; then
+  command -v insomnia-palette &>/dev/null && insomnia-palette
+  _icons=()
+else
+  _icons=(--icons)
+fi
+
 # Modern CLI aliases
-alias ls='eza --icons --group-directories-first'
-alias ll='eza -la --icons --group-directories-first'
-alias lt='eza --tree --level=2 --icons'
+alias ls="eza $_icons --group-directories-first"
+alias ll="eza -la $_icons --group-directories-first"
+alias lt="eza --tree --level=2 $_icons"
 alias cat='bat --style=plain'
 alias grep='rg'
 alias find='fd'
 alias top='btop'
-alias vim='micro'
-alias vi='micro'
+alias vi='vim'
 
 # Insomnia System regime shortcuts
 alias epm='sudo insomnia-ctl epm'
+alias dark='sudo insomnia-ctl dark'
 alias gui='sudo insomnia-ctl gui'
 alias regime='insomnia-ctl status'
+alias batt='insomnia-batt'
+alias drain='sudo powertop'
 
 # Safety nets
 alias rm='rm -i'
@@ -48,6 +58,7 @@ alias cp='cp -i'
 alias mv='mv -i'
 
 export PATH="/usr/local/bin:$HOME/.local/bin:$PATH"
-export EDITOR=micro
+export EDITOR=vim
+export VISUAL=vim
 export PAGER='bat --style=plain'
 export MANPAGER="sh -c 'col -bx | bat -l man --style=plain'"

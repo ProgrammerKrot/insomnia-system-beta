@@ -1,73 +1,82 @@
-# Insomnia System — Starship prompt configuration
-# OLED-safe: no bright backgrounds, minimal glyph usage
+# Insomnia System — Starship prompt (INSOMNIA//NEON)
+# Installed to: /etc/insomnia/starship.toml
+#
+# Colours are ANSI names, so on the Linux console they resolve to the
+# insomnia-palette slots (purple = slot 5 neon magenta, cyan = slot 6).
+# Only box-drawing glyphs are used — they exist in Terminus; Nerd Font icons don't.
+#
+#   ┌─[~/src/insomnia]─[git:main !2]─[4.8 W ▼63%]
+#   └─▶
 
-format = """
-$directory$git_branch$git_status$cmd_duration
-$character"""
+format = '''
+[┌─](bold purple)[\[](purple)$username$hostname$directory[\]](purple)$git_branch$git_status$battery$cmd_duration
+[└─](bold purple)$character'''
 
-[directory]
-style = "bold white"
-truncation_length = 3
-truncate_to_repo = true
-read_only = " 󰌾"
-
-[git_branch]
-symbol = " "
-style = "bold dimmed white"
-truncation_length = 20
-
-[git_status]
-style = "bold red"
-ahead = "⇡${count}"
-behind = "⇣${count}"
-diverged = "⇕⇡${ahead_count}⇣${behind_count}"
-untracked = "?${count}"
-modified = "!${count}"
-staged = "+${count}"
-deleted = "✘${count}"
-
-[cmd_duration]
-min_time = 500
-style = "dimmed white"
-format = "took [$duration]($style) "
-
-[character]
-success_symbol = "[❯](bold white)"
-error_symbol = "[❯](bold red)"
-vimcmd_symbol = "[❮](bold white)"
-
-[battery]
-full_symbol = "█"
-charging_symbol = "↑"
-discharging_symbol = "↓"
-unknown_symbol = "░"
-empty_symbol = "▱"
-
-[[battery.display]]
-threshold = 20
-style = "bold red"
-
-[[battery.display]]
-threshold = 50
-style = "bold yellow"
-
-[[battery.display]]
-threshold = 80
-style = "white"
-
-[hostname]
-ssh_only = true
-style = "bold dimmed white"
+add_newline = true
 
 [username]
 show_always = false
-style_root = "bold red"
-style_user = "dimmed white"
+format = '[$user](bold red)[@](purple)'
 
-[line_break]
-disabled = false
+[hostname]
+ssh_only = true
+format = '[$hostname](bold cyan)[:](purple)'
+
+[directory]
+style = 'bold cyan'
+format = '[$path]($style)[$read_only]($read_only_style)'
+truncation_length = 3
+truncate_to_repo = true
+read_only = ' [ro]'
+read_only_style = 'red'
+
+[git_branch]
+format = '[─\[](purple)[git:$branch]($style)'
+style = 'bold purple'
+truncation_length = 20
+
+[git_status]
+format = '( [$all_status$ahead_behind]($style))[\]](purple)'
+style = 'bold yellow'
+ahead = '^${count}'
+behind = 'v${count}'
+diverged = '^${ahead_count}v${behind_count}'
+untracked = '?${count}'
+modified = '!${count}'
+staged = '+${count}'
+deleted = 'x${count}'
+
+[battery]
+format = '[─\[](purple)[$symbol$percentage]($style)[\]](purple)'
+full_symbol = '■ '
+charging_symbol = '▲ '
+discharging_symbol = '▼ '
+unknown_symbol = '░ '
+empty_symbol = '□ '
+
+[[battery.display]]
+threshold = 20
+style = 'bold red'
+
+[[battery.display]]
+threshold = 50
+style = 'bold yellow'
+
+[[battery.display]]
+threshold = 100
+style = 'cyan'
+
+[cmd_duration]
+min_time = 500
+format = '[─\[](purple)[$duration]($style)[\]](purple)'
+style = 'yellow'
+
+[character]
+success_symbol = '[▶](bold cyan)'
+error_symbol = '[▶](bold red)'
+vimcmd_symbol = '[◀](bold purple)'
 
 [jobs]
-symbol = "✦"
-style = "bold dimmed white"
+symbol = '+'
+style = 'bold yellow'
 number_threshold = 1
