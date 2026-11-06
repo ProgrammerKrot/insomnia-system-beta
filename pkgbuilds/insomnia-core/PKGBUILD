@@ -4,7 +4,7 @@ pkgver=0.1
 pkgrel=1
 pkgdesc="Insomnia System core configuration and scripts meta-package"
 arch=('any')
-url="https://github.com/ProgrammerKrot/InsomniaSys-beta"
+url="https://github.com/ProgrammerKrot/insomnia-system-beta"
 license=('MIT')
 depends=(
   'tlp'
@@ -23,18 +23,31 @@ depends=(
   'bat'
   'eza'
   'acpi'
+  'vim'
+  'iw'
+  'kbd'
+  'lf'
 )
 source=(
-  "insomnia-ctl::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/archiso/airootfs/usr/local/bin/insomnia-ctl"
-  "epm-launch::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/archiso/airootfs/usr/local/bin/epm-launch"
-  "insomnia-persist::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/archiso/airootfs/usr/local/bin/insomnia-persist"
-  "zshrc::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/archiso/airootfs/etc/zsh/zshrc"
-  "zellij-layout.kdl::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/config/epm/zellij-layout.kdl"
-  "starship.toml::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/config/epm/starship.toml"
-  "btop.conf::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/config/epm/btop.conf"
+  "insomnia-ctl::https://raw.githubusercontent.com/ProgrammerKrot/insomnia-system-beta/main/archiso/airootfs/usr/local/bin/insomnia-ctl"
+  "epm-launch::https://raw.githubusercontent.com/ProgrammerKrot/insomnia-system-beta/main/archiso/airootfs/usr/local/bin/epm-launch"
+  "insomnia-persist::https://raw.githubusercontent.com/ProgrammerKrot/insomnia-system-beta/main/archiso/airootfs/usr/local/bin/insomnia-persist"
+  "zshrc::https://raw.githubusercontent.com/ProgrammerKrot/insomnia-system-beta/main/archiso/airootfs/etc/zsh/zshrc"
+  "zellij-layout.kdl::https://raw.githubusercontent.com/ProgrammerKrot/insomnia-system-beta/main/config/epm/zellij-layout.kdl"
+  "starship.toml::https://raw.githubusercontent.com/ProgrammerKrot/insomnia-system-beta/main/config/epm/starship.toml"
+  "btop.conf::https://raw.githubusercontent.com/ProgrammerKrot/insomnia-system-beta/main/config/epm/btop.conf"
+  "insomnia-power::https://raw.githubusercontent.com/ProgrammerKrot/insomnia-system-beta/main/archiso/airootfs/usr/local/bin/insomnia-power"
+  "insomnia-batt::https://raw.githubusercontent.com/ProgrammerKrot/insomnia-system-beta/main/archiso/airootfs/usr/local/bin/insomnia-batt"
+  "insomnia-palette::https://raw.githubusercontent.com/ProgrammerKrot/insomnia-system-beta/main/archiso/airootfs/usr/local/bin/insomnia-palette"
+  "zellij-config.kdl::https://raw.githubusercontent.com/ProgrammerKrot/insomnia-system-beta/main/config/epm/zellij-config.kdl"
+  "90-insomnia.conf::https://raw.githubusercontent.com/ProgrammerKrot/insomnia-system-beta/main/archiso/airootfs/etc/tlp.d/90-insomnia.conf"
+  "90-insomnia-power.rules::https://raw.githubusercontent.com/ProgrammerKrot/insomnia-system-beta/main/archiso/airootfs/etc/udev/rules.d/90-insomnia-power.rules"
+  "insomnia-neon.theme::https://raw.githubusercontent.com/ProgrammerKrot/insomnia-system-beta/main/archiso/airootfs/usr/share/btop/themes/insomnia-neon.theme"
+  "vimrc::https://raw.githubusercontent.com/ProgrammerKrot/insomnia-system-beta/main/config/vim/vimrc"
 )
 sha256sums=(
   'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
+  'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
 )
 
 package() {
@@ -44,5 +57,13 @@ package() {
   install -Dm644 zshrc             "$pkgdir/etc/zsh/zshrc"
   install -Dm644 zellij-layout.kdl "$pkgdir/etc/insomnia/epm/zellij-layout.kdl"
   install -Dm644 starship.toml     "$pkgdir/etc/insomnia/starship.toml"
-  install -Dm644 btop.conf         "$pkgdir/etc/insomnia/btop.conf"
+  install -Dm644 btop.conf         "$pkgdir/etc/skel/.config/btop/btop.conf"
+  install -Dm755 insomnia-power    "$pkgdir/usr/local/bin/insomnia-power"
+  install -Dm755 insomnia-batt     "$pkgdir/usr/local/bin/insomnia-batt"
+  install -Dm755 insomnia-palette  "$pkgdir/usr/local/bin/insomnia-palette"
+  install -Dm644 zellij-config.kdl "$pkgdir/etc/insomnia/epm/zellij-config.kdl"
+  install -Dm644 90-insomnia.conf  "$pkgdir/etc/tlp.d/90-insomnia.conf"
+  install -Dm644 90-insomnia-power.rules "$pkgdir/etc/udev/rules.d/90-insomnia-power.rules"
+  install -Dm644 insomnia-neon.theme "$pkgdir/usr/share/btop/themes/insomnia-neon.theme"
+  install -Dm644 vimrc             "$pkgdir/etc/skel/.vimrc"
 }
