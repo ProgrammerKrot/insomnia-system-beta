@@ -1,0 +1,31 @@
+// Insomnia System — EPM Zellij config
+// Installed to: /etc/insomnia/epm/zellij-config.kdl  (used via `zellij --config`)
+
+theme "insomnia-neon"
+default_shell "zsh"
+simplified_ui true          // ASCII-safe frames: the Linux console has no Nerd Font glyphs
+pane_frames true
+mouse_mode true
+copy_on_select true
+on_force_close "detach"
+
+// Don't write session state to disk every second — saves disk wake-ups.
+session_serialization false
+
+// Colours are palette *indices* (0–15), not RGB, so they resolve to the
+// INSOMNIA//NEON palette that insomnia-palette loads into the console.
+themes {
+    insomnia-neon {
+        fg 7
+        bg 0
+        black 0
+        red 1
+        green 6       // zellij paints the focused frame "green" -> cyan
+        yellow 3
+        blue 4
+        magenta 5
+        cyan 6
+        white 15
+        orange 13
+    }
+}

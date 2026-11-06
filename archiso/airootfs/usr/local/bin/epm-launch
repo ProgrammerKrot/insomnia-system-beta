@@ -2,23 +2,29 @@
 # epm-launch — Start the EPM Zellij dashboard session
 set -euo pipefail
 
-LAYOUT_FILE="/etc/insomnia/epm/zellij-layout.kdl"
+EPM_DIR="/etc/insomnia/epm"
 SESSION_NAME="insomnia-epm"
-
-clear
-
-# Animate the eye for 4 seconds as a splash, then hand off to Zellij
-if command -v insomnia-eye &>/dev/null && [[ -t 1 ]]; then
-  timeout 4 insomnia-eye --loop 2>/dev/null || true
-  clear
-fi
-
-insomnia-eye --once 2>/dev/null || cat /etc/issue
 
 [[ -n "${ZELLIJ:-}" ]] && { echo "[!] Already inside a Zellij session."; exit 0; }
 
-if zellij list-sessions 2>/dev/null | grep -q "$SESSION_NAME"; then
-  exec zellij attach "$SESSION_NAME"
+if [[ ${TERM:-} == linux ]]; then
+  insomnia-palette --clear
+  # Blank the panel after 3 idle minutes and let DPMS power it down after 5 —
+  # on a laptop the backlight is the single biggest consumer in a TTY.
+  setterm --blank 3 --powerdown 5 --powersave on 2>/dev/null || true
+fi
+
+clear
+# Short splash (the animation loop costs CPU, so keep it brief)
+if command -v insomnia-eye &>/dev/null && [[ -t 1 ]]; then
+  timeout 2 insomnia-eye --loop 2>/dev/null || true
+  clear
+fi
+
+if zellij list-sessions --short 2>/dev/null | grep -qx "$SESSION_NAME"; then
+  exec zellij --config "$EPM_DIR/zellij-config.kdl" attach "$SESSION_NAME"
 else
-  exec zellij --session "$SESSION_NAME" --layout "$LAYOUT_FILE"
+  exec zellij --config "$EPM_DIR/zellij-config.kdl" \
+              --session "$SESSION_NAME" \
+              --layout "$EPM_DIR/zellij-layout.kdl"
 fi

@@ -1,39 +1,44 @@
 // Insomnia System — EPM Zellij Dashboard Layout
-// Save as: /etc/insomnia/epm/zellij-layout.kdl
+// Installed to: /etc/insomnia/epm/zellij-layout.kdl
+//
+// Power rule: nothing that polls runs unless you are looking at it.
+// btop / nmtui / lf start *suspended* (press Enter in the pane to run them),
+// and the only always-on pane is insomnia-batt at a 10 s refresh.
 
 layout {
-    pane size=1 borderless=true {
-        plugin location="zellij:tab-bar"
+    default_tab_template {
+        pane size=1 borderless=true {
+            plugin location="zellij:compact-bar"
+        }
+        children
     }
 
-    pane split_direction="vertical" {
-        // Left column: monitor (70% width)
-        pane split_direction="horizontal" size="70%" {
-            pane command="btop" size="60%" {
-                args "--utf-force"
-                name "resources"
-            }
-            pane name="shell" {
-                // Primary interactive shell
-            }
-        }
-
-        // Right column: status panels (30% width)
-        pane split_direction="horizontal" size="30%" {
-            pane command="watch" size="33%" {
-                args "-n2" "-c" "acpi -V && echo && cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
-                name "power"
-            }
-            pane command="nmtui" size="34%" {
-                name "network"
-            }
-            pane name="files" size="33%" {
-                // ranger launches here via shell alias
+    tab name="OPS" focus=true {
+        pane split_direction="vertical" {
+            pane name="//shell" size="64%" focus=true
+            pane split_direction="horizontal" size="36%" {
+                pane name="//power" command="insomnia-batt" size="62%"
+                pane name="//aux"
             }
         }
     }
 
-    pane size=2 borderless=true {
-        plugin location="zellij:status-bar"
+    tab name="SYS" {
+        pane name="//btop" command="btop" start_suspended=true {
+            args "--utf-force"
+        }
+    }
+
+    tab name="NET" {
+        pane split_direction="horizontal" {
+            pane name="//nmtui" command="nmtui" start_suspended=true size="60%"
+            pane name="//bandwhich" command="sudo" start_suspended=true {
+                args "bandwhich"
+            }
+        }
+    }
+
+    tab name="FILES" {
+        pane name="//lf" command="lf" start_suspended=true
     }
 }
