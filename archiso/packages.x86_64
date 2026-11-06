@@ -27,6 +27,13 @@ acpi
 acpid
 thermald
 upower
+ethtool
+brightnessctl
+lm_sensors
+smartmontools
+hdparm
+s-tui
+kbd
 
 # ── Networking ─────────────────────────────────────────────────
 networkmanager
@@ -46,8 +53,13 @@ tmux
 btop
 htop
 micro
+vim
 ranger
+lf
+nnn
+mc
 w3m
+lynx
 fzf
 ripgrep
 fd
@@ -64,7 +76,7 @@ curl
 wget
 rsync
 unzip
-p7zip
+7zip
 tar
 gzip
 less
@@ -87,14 +99,112 @@ xf86-video-nouveau
 intel-ucode
 amd-ucode
 libva-intel-driver
-libva-mesa-driver
+
+# ── CLI Workstation (all TUI — usable in EPM) ─────────────────
+ncdu
+duf
+dust
+tree
+jq
+yq
+glow
+tealdeer
+fastfetch
+moreutils
+entr
+progress
+procs
+sd
+git-delta
+lazygit
+xh
+aria2
+yt-dlp
+ddgr
+newsboat
+neomutt
+weechat
+calcurse
+task
+pass
+gnupg
+cmus
+mpv
+pamixer
+alsa-utils
+atop
+iotop-c
+sysstat
+asciinema
+fbgrab
+fbida
+
+# ── Network Tools ─────────────────────────────────────────────
+bind
+whois
+traceroute
+mtr
+iperf3
+nethogs
+iftop
+bandwhich
+openbsd-netcat
+socat
+tor
+torsocks
+proxychains-ng
+openvpn
+wireguard-tools
+sshfs
+rclone
+nftables
+ufw
+
+# ── Security Toolkit (Kali-equivalent, official Arch repos) ───
+# Strip with: build-iso.sh --no-security
+nmap
+masscan
+arp-scan
+wireshark-cli
+tcpdump
+bettercap
+mitmproxy
+macchanger
+aircrack-ng
+hcxdumptool
+hcxtools
+reaver
+wifite
+kismet
+hashcat
+john
+hydra
+medusa
+sqlmap
+nikto
+gobuster
+wpscan
+metasploit
+impacket
+radare2
+gdb
+binwalk
+perl-image-exiftool
+foremost
+sleuthkit
+testdisk
+yara
+lynis
+rkhunter
 
 # ── Plymouth (Boot Splash) ─────────────────────────────────────
 plymouth
 
 # ── Graphical Installer (Calamares) ───────────────────────────
-calamares
-calamares-qt6
+# calamares is AUR-only on Arch (Manjaro ships it, Arch does not):
+# put its AUR PKGBUILD in pkgbuilds/calamares/, publish with update-repo.sh,
+# enable the [insomnia] repo, then uncomment.
+# calamares
 kpmcore
 boost-libs
 python-yaml
@@ -109,7 +219,7 @@ gnome-tweaks
 gnome-shell-extensions
 gdm
 papirus-icon-theme
-ttf-inter
+inter-font
 ttf-jetbrains-mono-nerd
 noto-fonts
 noto-fonts-emoji
