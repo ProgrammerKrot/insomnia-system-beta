@@ -1,0 +1,7 @@
+set ignorecase
+set number
+set relativenumber
+syntax on
+set mouse=a
+set autoindent
+au FileType c,cpp setlocal et ts=4 sw=4 sts=4
