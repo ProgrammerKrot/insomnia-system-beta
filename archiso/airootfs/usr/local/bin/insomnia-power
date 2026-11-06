@@ -1,0 +1,234 @@
+#!/usr/bin/env bash
+# /usr/local/bin/insomnia-power — EPM power tuning engine
+#
+# Usage:
+#   insomnia-power apply epm    # radios: Wi-Fi on (power-save), Bluetooth off
+#   insomnia-power apply dark   # everything off the air, deepest caps
+#   insomnia-power reapply      # re-assert current level (AC/battery change hook)
+#   insomnia-power restore      # put every knob back exactly as it was
+#
+# Every write goes through _set, which records the ORIGINAL value of a knob the
+# first time it is touched. `restore` replays that snapshot in reverse, so GUI
+# mode gets back whatever the machine had before — no guessing at "defaults".
+#
+# Knobs that don't exist on this hardware are skipped silently; that is why
+# this script does not use `set -e`.
+set -uo pipefail
+
+STATE_DIR=/run/insomnia
+SNAP="$STATE_DIR/snapshot"          # path<TAB>original-value, first write wins
+SVC_SNAP="$STATE_DIR/stopped-services"
+RF_SNAP="$STATE_DIR/rfkill-unblocked"
+WIFI_SNAP="$STATE_DIR/wifi-ps"
+LEVEL_FILE="$STATE_DIR/level"
+LOG_FILE=/var/log/insomnia-power.log
+
+# Services that do nothing useful in a text-only session but wake the CPU.
+IDLE_SERVICES=(bluetooth cups cups-browsed avahi-daemon ModemManager geoclue
+               packagekit fwupd colord switcheroo-control)
+
+_log() { echo "[$(date '+%H:%M:%S')] power: $*" | tee -a "$LOG_FILE" >&2; }
+
+# Read a sysfs value; for "a [b] c" style files return the bracketed choice.
+_read() {
+  local v
+  [[ -r $1 ]] || return 1
+  v=$(<"$1")
+  [[ $v =~ \[([^]]+)\] ]] && v=${BASH_REMATCH[1]}
+  printf '%s' "$v"
+}
+
+_set() {
+  local path=$1 value=$2 orig
+  [[ -w $path ]] || return 0
+  if ! awk -F'\t' -v p="$path" '$1==p{f=1} END{exit !f}' "$SNAP" 2>/dev/null; then
+    orig=$(_read "$path") || return 0
+    printf '%s\t%s\n' "$path" "$orig" >> "$SNAP"
+  fi
+  echo "$value" > "$path" 2>/dev/null || true
+}
+
+_on_battery() {
+  local ps
+  for ps in /sys/class/power_supply/*; do
+    [[ $(<"$ps/type") == Mains && -r $ps/online ]] || continue
+    [[ $(<"$ps/online") == 1 ]] && return 1
+  done
+  return 0
+}
+
+# ── CPU ──────────────────────────────────────────────────────────────────────
+_cpu() {
+  local cap_pct=$1 pol avail max min cap pp choice
+  for pol in /sys/devices/system/cpu/cpufreq/policy*; do
+    [[ -r $pol/cpuinfo_max_freq ]] || continue
+    avail=powersave
+    [[ -r $pol/scaling_available_governors ]] && avail=$(<"$pol/scaling_available_governors")
+    [[ " $avail " == *" powersave "* ]] && _set "$pol/scaling_governor" powersave
+    # EPP is what actually matters on intel_pstate / amd-pstate (HWP).
+    _set "$pol/energy_performance_preference" power
+    _set "$pol/boost" 0
+    max=$(<"$pol/cpuinfo_max_freq") min=$(<"$pol/cpuinfo_min_freq")
+    cap=$(( max * cap_pct / 100 )); (( cap < min )) && cap=$min
+    _set "$pol/scaling_max_freq" "$cap"
+  done
+  _set /sys/devices/system/cpu/intel_pstate/no_turbo 1
+  _set /sys/devices/system/cpu/intel_pstate/hwp_dynamic_boost 0
+  _set /sys/devices/system/cpu/cpufreq/boost 0
+
+  pp=/sys/firmware/acpi/platform_profile
+  if [[ -r ${pp}_choices ]]; then
+    for choice in low-power quiet cool; do
+      [[ " $(<"${pp}_choices") " == *" $choice "* ]] && { _set "$pp" "$choice"; break; }
+    done
+  fi
+}
+
+# ── GPU ──────────────────────────────────────────────────────────────────────
+_gpu() {
+  local card
+  for card in /sys/class/drm/card[0-9]; do
+    # i915: no boost clocks, ceiling at the efficient RP1 point (TTY needs nothing)
+    if [[ -r $card/gt_min_freq_mhz ]]; then
+      _set "$card/gt_boost_freq_mhz" "$(<"$card/gt_min_freq_mhz")"
+      [[ -r $card/gt_RP1_freq_mhz ]] && _set "$card/gt_max_freq_mhz" "$(<"$card/gt_RP1_freq_mhz")"
+    fi
+    # amdgpu / radeon
+    _set "$card/device/power_dpm_force_performance_level" low
+  done
+}
+
+# ── Buses, storage, audio, kernel ─────────────────────────────────────────────
+_usb_is_hid() {
+  local intf
+  for intf in "$1"/*:*/bInterfaceClass; do
+    [[ -r $intf && $(<"$intf") == 03 ]] && return 0
+  done
+  return 1
+}
+
+_buses() {
+  local aspm=$1 dev host
+  for dev in /sys/bus/pci/devices/*; do _set "$dev/power/control" auto; done
+  for dev in /sys/bus/usb/devices/*; do
+    [[ -e $dev/power/control ]] || continue
+    _usb_is_hid "$dev" && continue        # never autosuspend keyboards/mice
+    _set "$dev/power/control" auto
+  done
+  for host in /sys/class/scsi_host/host*; do
+    _set "$host/link_power_management_policy" med_power_with_dipm
+  done
+  _set /sys/module/pcie_aspm/parameters/policy "$aspm"   # firmware may refuse
+  _set /sys/module/snd_hda_intel/parameters/power_save 1
+  _set /sys/module/snd_hda_intel/parameters/power_save_controller Y
+  _set /proc/sys/kernel/nmi_watchdog 0
+  _set /proc/sys/vm/dirty_writeback_centisecs 1500        # flush disk every 15s, not 5s
+  _set /proc/sys/vm/laptop_mode 5
+}
+
+# ── Display ──────────────────────────────────────────────────────────────────
+_display() {
+  local pct=$1 bl max led
+  for bl in /sys/class/backlight/*; do
+    [[ -r $bl/max_brightness ]] || continue
+    max=$(<"$bl/max_brightness")
+    local target=$(( max * pct / 100 )); (( target < 1 )) && target=1
+    _set "$bl/brightness" "$target"
+  done
+  for led in /sys/class/leds/*kbd_backlight*; do _set "$led/brightness" 0; done
+}
+
+# ── Radios ───────────────────────────────────────────────────────────────────
+_radios() {
+  local level=$1 rf type iface
+  for rf in /sys/class/rfkill/rfkill*; do
+    [[ -r $rf/soft ]] || continue
+    type=$(<"$rf/type")
+    if [[ $level == dark || $type == bluetooth || $type == nfc || $type == wwan ]]; then
+      if [[ $(<"$rf/soft") == 0 ]]; then
+        grep -qx "${rf##*/}" "$RF_SNAP" 2>/dev/null || echo "${rf##*/}" >> "$RF_SNAP"
+        echo 1 > "$rf/soft" 2>/dev/null || true
+      fi
+    fi
+  done
+  if [[ $level == epm ]] && command -v iw &>/dev/null; then
+    for iface in /sys/class/net/*/wireless; do
+      iface=${iface%/wireless}; iface=${iface##*/}
+      if iw dev "$iface" get power_save 2>/dev/null | grep -q off; then
+        grep -qx "$iface" "$WIFI_SNAP" 2>/dev/null || echo "$iface" >> "$WIFI_SNAP"
+        iw dev "$iface" set power_save on 2>/dev/null || true
+      fi
+    done
+  fi
+}
+
+_services() {
+  local svc
+  for svc in "${IDLE_SERVICES[@]}"; do
+    if systemctl is-active --quiet "$svc" 2>/dev/null; then
+      grep -qx "$svc" "$SVC_SNAP" 2>/dev/null || echo "$svc" >> "$SVC_SNAP"
+      systemctl stop "$svc" 2>/dev/null || true
+    fi
+  done
+}
+
+# ── Entry points ─────────────────────────────────────────────────────────────
+_apply() {
+  local level=${1:-epm}
+  [[ $level == epm || $level == dark ]] || { echo "level must be epm|dark" >&2; exit 2; }
+  mkdir -p "$STATE_DIR"; touch "$SNAP"
+  _log "applying level: $level"
+
+  if [[ $level == dark ]]; then
+    _cpu   "${EPM_CPU_CAP_DARK:-40}"
+    _buses powersupersave
+    _display "${EPM_BRIGHTNESS_DARK:-5}"
+  else
+    _cpu   "${EPM_CPU_CAP:-60}"
+    _buses powersave
+    _display "${EPM_BRIGHTNESS:-15}"
+  fi
+  _gpu
+  _radios "$level"
+  _services
+  echo "$level" > "$LEVEL_FILE"
+  _log "level $level active ($(wc -l < "$SNAP") knobs tracked)"
+}
+
+_reapply() {
+  # Called ~5s after an AC/battery change, after TLP has re-applied its profile.
+  [[ -r $LEVEL_FILE ]] || exit 0
+  _on_battery || { _log "on AC — leaving TLP's profile alone"; exit 0; }
+  _apply "$(<"$LEVEL_FILE")"
+}
+
+_restore() {
+  [[ -d $STATE_DIR ]] || { _log "nothing to restore"; return 0; }
+  _log "restoring snapshot"
+  local path value rf iface svc
+  if [[ -r $SNAP ]]; then
+    while IFS=$'\t' read -r path value; do
+      echo "$value" > "$path" 2>/dev/null || true
+    done < <(tac "$SNAP")
+  fi
+  if [[ -r $RF_SNAP ]]; then
+    while read -r rf; do echo 0 > "/sys/class/rfkill/$rf/soft" 2>/dev/null || true; done < "$RF_SNAP"
+  fi
+  if [[ -r $WIFI_SNAP ]]; then
+    while read -r iface; do iw dev "$iface" set power_save off 2>/dev/null || true; done < "$WIFI_SNAP"
+  fi
+  if [[ -r $SVC_SNAP ]]; then
+    while read -r svc; do systemctl start "$svc" 2>/dev/null || true; done < "$SVC_SNAP"
+  fi
+  rm -rf "$STATE_DIR"
+  _log "restore complete"
+}
+
+[[ $EUID -eq 0 ]] || { echo "insomnia-power: must run as root" >&2; exit 1; }
+
+case "${1:-}" in
+  apply)   _apply "${2:-epm}" ;;
+  reapply) _reapply ;;
+  restore) _restore ;;
+  *) echo "Usage: insomnia-power apply [epm|dark] | reapply | restore" >&2; exit 2 ;;
+esac
