@@ -1,0 +1,5 @@
+# Re-assert the EPM level after an AC <-> battery switch.
+# TLP re-applies its own profile on the same event, so wait 5 s and then let
+# insomnia-power put the EPM caps back (it no-ops outside EPM and on AC).
+SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ACTION=="change", \
+  RUN+="/usr/bin/systemd-run --no-block --on-active=5 /usr/local/bin/insomnia-power reapply"
