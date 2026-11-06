@@ -4,7 +4,7 @@ pkgver=0.1
 pkgrel=1
 pkgdesc="Insomnia System OLED-oriented GNOME dconf profile"
 arch=('any')
-url="https://github.com/ProgrammerKrot/InsomniaSys-beta"
+url="https://github.com/ProgrammerKrot/insomnia-system-beta"
 license=('MIT')
 depends=(
   'papirus-icon-theme'
@@ -15,7 +15,7 @@ optdepends=(
   'plymouth: boot splash (theme assets planned)'
 )
 source=(
-  "01-oled-dark::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/config/gnome/dconf-insomnia.ini"
+  "01-oled-dark::https://raw.githubusercontent.com/ProgrammerKrot/insomnia-system-beta/main/config/gnome/dconf-insomnia.ini"
 )
 sha256sums=('SKIP')
 

@@ -4,11 +4,11 @@ pkgver=0.1
 pkgrel=1
 pkgdesc="Insomnia System minimalist OLED-safe Starship prompt configuration"
 arch=('any')
-url="https://github.com/ProgrammerKrot/InsomniaSys-beta"
+url="https://github.com/ProgrammerKrot/insomnia-system-beta"
 license=('MIT')
 depends=('starship' 'zsh' 'ttf-jetbrains-mono-nerd')
 source=(
-  "starship.toml::https://raw.githubusercontent.com/ProgrammerKrot/InsomniaSys-beta/main/config/epm/starship.toml"
+  "starship.toml::https://raw.githubusercontent.com/ProgrammerKrot/insomnia-system-beta/main/config/epm/starship.toml"
 )
 sha256sums=('SKIP')
 
