@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+# /usr/local/bin/insomnia-batt — battery / power telemetry for EPM
+#
+#   insomnia-batt           live panel (refresh every $BATT_INTERVAL s, q to quit)
+#   insomnia-batt --line    one-line summary (used by `insomnia-ctl status`)
+#
+# Written to be cheap: sysfs reads use bash builtins (no external commands per tick),
+# and the default 10 s interval keeps CPU wake-ups negligible.
+set -uo pipefail
+
+INTERVAL=${BATT_INTERVAL:-10}
+TARGET_H=${BATT_TARGET_HOURS:-12}
+
+# Palette indices — redefined to the Insomnia neon palette by insomnia-palette.
+C0=$'\e[0m' DIM=$'\e[2m' B=$'\e[1m'
+MAG=$'\e[35m' CYN=$'\e[36m' GRN=$'\e[32m' YEL=$'\e[33m' RED=$'\e[31m' GRY=$'\e[90m'
+
+_rd() { [[ -r $1 ]] && printf '%s' "$(<"$1")"; }
+
+BAT=
+for d in /sys/class/power_supply/*; do
+  [[ $(_rd "$d/type") == Battery ]] && { BAT=$d; break; }
+done
+
+# Sets: PCT STATUS E_MWH FULL_MWH HEALTH P_MW
+_sample() {
+  PCT=$(_rd "$BAT/capacity"); STATUS=$(_rd "$BAT/status")
+  local uv nom; uv=$(_rd "$BAT/voltage_now"); uv=${uv:-0}
+  # Stored energy uses the nominal voltage; live voltage reads high while charging.
+  nom=$(_rd "$BAT/voltage_min_design"); nom=${nom:-$uv}
+  if [[ -r $BAT/energy_now ]]; then
+    E_MWH=$(( $(<"$BAT/energy_now") / 1000 ))
+    FULL_MWH=$(( $(<"$BAT/energy_full") / 1000 ))
+    HEALTH=$(( $(<"$BAT/energy_full") * 100 / $(_rd "$BAT/energy_full_design") ))
+  else
+    E_MWH=$(( $(_rd "$BAT/charge_now") / 1000 * (nom / 1000) / 1000 ))
+    FULL_MWH=$(( $(_rd "$BAT/charge_full") / 1000 * (nom / 1000) / 1000 ))
+    HEALTH=$(( $(_rd "$BAT/charge_full") * 100 / $(_rd "$BAT/charge_full_design") ))
+  fi
+  if [[ -r $BAT/power_now ]]; then
+    P_MW=$(( $(<"$BAT/power_now") / 1000 ))
+  else
+    P_MW=$(( $(_rd "$BAT/current_now") / 1000 * (uv / 1000) / 1000 ))
+  fi
+  (( P_MW < 0 )) && P_MW=$(( -P_MW ))
+}
+
+_w()   { printf '%d.%d W' $(( $1 / 1000 )) $(( $1 % 1000 / 100 )); }   # mW -> "4.8 W"
+_hm()  { printf '%dh %02dm' $(( $1 / 60 )) $(( $1 % 60 )); }
+
+_bar() {   # pct width
+  local fill=$(( $1 * $2 / 100 )) out='' i
+  for (( i = 0; i < $2; i++ )); do (( i < fill )) && out+='█' || out+='░'; done
+  printf '%s' "$out"
+}
+
+_line() {
+  [[ -n $BAT ]] || { echo "no battery"; return; }
+  _sample
+  local s="${PCT}% ${STATUS,,} · $(_w "$P_MW")"
+  if [[ $STATUS == Discharging ]] && (( P_MW > 0 )); then
+    s+=" · ETA $(_hm $(( E_MWH * 60 / P_MW )))"
+  fi
+  echo "$s"
+}
+
+_cpu_info() {
+  local p=/sys/devices/system/cpu/cpufreq/policy0
+  local gov epp cur cap
+  gov=$(_rd "$p/scaling_governor"); epp=$(_rd "$p/energy_performance_preference")
+  cur=$(_rd "$p/scaling_cur_freq"); cap=$(_rd "$p/scaling_max_freq")
+  printf '%s%s%s' "${gov:-?}" "${epp:+ · $epp}" ""
+  [[ -n $cur && -n $cap ]] && printf ' · %d/%d MHz' $(( cur / 1000 )) $(( cap / 1000 ))
+}
+
+_temp() {
+  local h n
+  for h in /sys/class/hwmon/hwmon*; do
+    n=$(_rd "$h/name")
+    case $n in coretemp|k10temp|zenpower|cpu_thermal|acpitz)
+      [[ -r $h/temp1_input ]] && { echo "$(( $(<"$h/temp1_input") / 1000 ))°C"; return; } ;;
+    esac
+  done
+  echo "n/a"
+}
+
+_radios() {
+  local rf t s out=''
+  for rf in /sys/class/rfkill/rfkill*; do
+    [[ -r $rf/type ]] || continue
+    t=$(<"$rf/type"); s=$(<"$rf/soft")$(_rd "$rf/hard")
+    [[ $s == 00 ]] && out+="${GRN}${t}:on${C0} " || out+="${GRY}${t}:off${C0} "
+  done
+  printf '%s' "${out:-none}"
+}
+
+_light() {
+  local bl
+  for bl in /sys/class/backlight/*; do
+    [[ -r $bl/max_brightness ]] || continue
+    echo "$(( $(<"$bl/brightness") * 100 / $(<"$bl/max_brightness") ))%"; return
+  done
+  echo "n/a"
+}
+
+_header() {
+  # Cheap "glitch": one random letter swapped for a block each refresh.
+  local t='INSOMNIA//POWER' i=$(( RANDOM % 15 ))
+  [[ ${t:i:1} != / ]] && t="${t:0:i}▓${t:i+1}"
+  local lvl=GUI; [[ -r /run/insomnia/level ]] && lvl=EPM:$(</run/insomnia/level)
+  printf '%s▓▒░%s %s%s%s %s░▒▓%s  %s[%s]%s\n' "$MAG" "$C0" "$B$CYN" "$t" "$C0" "$MAG" "$C0" "$YEL" "${lvl^^}" "$C0"
+}
+
+_panel() {
+  [[ -n $BAT ]] || { echo "insomnia-batt: no battery found"; exit 1; }
+  local avg=0 key eta budget delta col
+  trap 'printf "\e[?25h%s" "$C0"; exit 0' INT TERM EXIT
+  printf '\e[?25l'
+  while :; do
+    _sample
+    (( avg == 0 )) && avg=$P_MW || avg=$(( (avg * 3 + P_MW) / 4 ))
+    budget=$(( FULL_MWH / TARGET_H ))
+
+    printf '\e[H\e[J'
+    _header
+    printf '%s%s%s\n' "$GRY" "──────────────────────────────────" "$C0"
+
+    col=$GRN; (( PCT < 50 )) && col=$YEL; (( PCT < 20 )) && col=$RED
+    printf ' %sCHARGE%s %s%s%s %3s%%\n' "$DIM" "$C0" "$col" "$(_bar "$PCT" 16)" "$C0" "$PCT"
+    printf ' %sSTATE %s  %s\n' "$DIM" "$C0" "${STATUS,,}"
+    col=$GRN; (( HEALTH < 80 )) && col=$YEL; (( HEALTH < 60 )) && col=$RED
+    printf ' %sWEAR  %s  %s%d%%%s of design · %d.%d Wh\n' "$DIM" "$C0" "$col" "$HEALTH" "$C0" $(( FULL_MWH / 1000 )) $(( FULL_MWH % 1000 / 100 ))
+    printf ' %sDRAW  %s  %s%s%s  %savg %s%s\n' "$DIM" "$C0" "$B" "$(_w "$P_MW")" "$C0" "$GRY" "$(_w "$avg")" "$C0"
+
+    if [[ $STATUS == Discharging ]] && (( avg > 0 )); then
+      eta=$(( E_MWH * 60 / avg ))
+      printf ' %sETA   %s  %s%s%s\n' "$DIM" "$C0" "$CYN$B" "$(_hm "$eta")" "$C0"
+      delta=$(( avg - budget ))
+      if (( delta > 0 )); then
+        printf ' %s%dH   %s  ≤ %s  %s+%s over%s\n' "$DIM" "$TARGET_H" "$C0" "$(_w "$budget")" "$RED" "$(_w "$delta")" "$C0"
+      else
+        printf ' %s%dH   %s  ≤ %s  %son target%s\n' "$DIM" "$TARGET_H" "$C0" "$(_w "$budget")" "$GRN" "$C0"
+      fi
+    else
+      printf ' %sETA   %s  %s—%s\n' "$DIM" "$C0" "$GRY" "$C0"
+      printf ' %s%dH   %s  ≤ %s\n' "$DIM" "$TARGET_H" "$C0" "$(_w "$budget")"
+    fi
+
+    printf '%s%s%s\n' "$GRY" "──────────────────────────────────" "$C0"
+    printf ' %sCPU   %s  %s\n' "$DIM" "$C0" "$(_cpu_info)"
+    printf ' %sTEMP  %s  %s\n' "$DIM" "$C0" "$(_temp)"
+    printf ' %sLIGHT %s  %s\n' "$DIM" "$C0" "$(_light)"
+    printf ' %sRADIO %s  %s\n' "$DIM" "$C0" "$(_radios)"
+    printf '\n %s[q] quit · refresh %ss%s' "$GRY" "$INTERVAL" "$C0"
+
+    read -rsn1 -t "$INTERVAL" key && [[ $key == q ]] && break
+  done
+}
+
+case "${1:-}" in
+  --line) _line ;;
+  *)      _panel ;;
+esac
